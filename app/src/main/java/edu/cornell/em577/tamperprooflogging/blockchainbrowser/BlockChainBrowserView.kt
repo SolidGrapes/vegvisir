@@ -28,7 +28,8 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
     private val edge = Path()
     private val leftArrowEdge = Path()
     private val rightArrowEdge = Path()
-    private var frontierCanvasBlockNode: CanvasBlockNode = updateFrontierCanvasBlockNode()
+    private var frontierCanvasBlockNode: CanvasBlockNode =
+        canvasBlocksToCanvasBlockNodes(blocksToCanvasBlocks())
 
     companion object {
         private const val NODE_RADIUS = 15
@@ -106,12 +107,12 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
      * Updates the canvas frontier node. Assumes that the blockchain provided is consistent and
      * forms an acyclic directed graph
      */
-    private fun updateFrontierCanvasBlockNode(): CanvasBlockNode {
-        return canvasBlocksToCanvasBlockNodes(blocksToCanvasBlocks())
+    private fun updateFrontierCanvasBlockNode() {
+        frontierCanvasBlockNode = canvasBlocksToCanvasBlockNodes(blocksToCanvasBlocks())
     }
 
     override fun onDraw(canvas: Canvas) {
-        frontierCanvasBlockNode = updateFrontierCanvasBlockNode()
+        updateFrontierCanvasBlockNode()
         drawGraph(canvas)
     }
 
