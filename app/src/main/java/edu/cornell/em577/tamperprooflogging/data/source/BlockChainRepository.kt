@@ -112,7 +112,7 @@ object BlockChainRepository {
 
     /** Create a new block node with the specified transactions, add it to the repository, and update the cache */
     fun addNewBlockNode(transactions: List<Transaction>): Boolean {
-        // TODO: Atomically switch on the isUpdating flag if false and synchronize on the internal frontierBlockNodeWrapper instance
+        // TODO: Atomically switch on the isUpdating flag if false and synchronize on the internal blockNodeStoreByCryptoHash instance
         // TODO: Retrieve userId and location of this authenticated user
         // TODO: Generate current timestamp and retrieve cryptoHash of current frontier Block
         // TODO: Sign this new block using the authenticated user's private key

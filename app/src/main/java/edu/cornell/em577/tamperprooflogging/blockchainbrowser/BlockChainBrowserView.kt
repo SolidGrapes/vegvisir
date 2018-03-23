@@ -7,13 +7,11 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Point
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import edu.cornell.em577.tamperprooflogging.data.model.Block
 import edu.cornell.em577.tamperprooflogging.data.source.BlockChainRepository
 import java.util.*
 import kotlin.math.pow
-import kotlin.math.sign
 
 class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
     View(context, attributeSet) {
@@ -155,7 +153,6 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         val yCoord = src.y + (dest.y.toFloat() - src.y) * (distance - NODE_RADIUS)/distance
 
         val arrowRadianOffset = Math.PI * (ARROW_DEGREE_OFFSET/180.0)
-        Log.d("ArrowRadianOffset", "$arrowRadianOffset")
         val positiveOffsetCos = Math.cos(arrowRadianOffset)
         val positiveOffsetSin = Math.sin(arrowRadianOffset)
         val negativeOffsetCos = Math.cos(-arrowRadianOffset)
@@ -163,22 +160,10 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         val arrowXCoord = (src.x.toFloat() - dest.x) * ARROW_LENGTH/distance
         val arrowYCoord = (src.y.toFloat() - dest.y) * ARROW_LENGTH/distance
 
-        Log.d("ArrowXCoord", "$arrowXCoord")
-        Log.d("ArrowYCoord", "$arrowYCoord")
-
         val positiveOffsetArrowXCoord = positiveOffsetCos * arrowXCoord - positiveOffsetSin * arrowYCoord
         val positiveOffsetArrowYCoord = positiveOffsetSin * arrowXCoord + positiveOffsetCos * arrowYCoord
-
-        Log.d("PositiveOffsetArrowXCoord", "$positiveOffsetArrowXCoord")
-        Log.d("PositiveOffsetArrowYCoord", "$positiveOffsetArrowYCoord")
-
         val negativeOffsetArrowXCoord = negativeOffsetCos * arrowXCoord - negativeOffsetSin * arrowYCoord
         val negativeOffsetArrowYCoord = negativeOffsetSin * arrowXCoord + negativeOffsetCos * arrowYCoord
-
-        Log.d("NegativeOffsetArrowXCoord", "$negativeOffsetArrowXCoord")
-        Log.d("NegativeOffsetArrowYCoord", "$negativeOffsetArrowYCoord")
-
-
 
         leftArrowEdge.moveTo(xCoord.toFloat(), yCoord.toFloat())
         leftArrowEdge.lineTo((xCoord.toFloat() + positiveOffsetArrowXCoord).toFloat(), (yCoord + positiveOffsetArrowYCoord).toFloat())
