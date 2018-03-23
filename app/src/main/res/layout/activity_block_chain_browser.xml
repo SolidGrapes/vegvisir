@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edu.cornell.em577.tamperprooflogging.blockchainbrowser.BlockChainBrowserLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="edu.cornell.em577.tamperprooflogging.blockchainbrowser.BlockChainBrowserActivity"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <edu.cornell.em577.tamperprooflogging.blockchainbrowser.BlockChainBrowserView
+        android:id="@+id/blockChainBrowserView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <Button
+        android:id="@+id/addBlockButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/add_block"
+        android:layout_gravity="bottom|end"
+        android:onClick="addBlockButtonListener"/>
+
+</edu.cornell.em577.tamperprooflogging.blockchainbrowser.BlockChainBrowserLayout>

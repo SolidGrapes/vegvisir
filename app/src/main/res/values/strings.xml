@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">TamperProofLogging</string>
+    <string name="add_block">Add Block</string>
+
+    <!--Create a separate set for each user on this device -->
+    <string name="user_id">Edwin</string>
+
+    <!--Look into using offline GPS functionality to dynamically determine user location-->
+    <string name="location">Ithaca</string>
+
+    <!--Secure authentication and verification data-->
+    <string name="hashed_password">HASHED_PASSWORD</string>
+    <string name="password_salt">PASSWORD_SALT</string>
+    <string name="private_key">PRIVATE_KEY</string>
+</resources>
