@@ -1,124 +1,91 @@
 package edu.cornell.em577.tamperprooflogging.data.source
 
-import edu.cornell.em577.tamperprooflogging.data.model.BlockNode
+import edu.cornell.em577.tamperprooflogging.data.exception.BlockNotFoundException
+import edu.cornell.em577.tamperprooflogging.data.model.Block
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
-import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
 
 /** Repository interfacing with the storage layer to store/retrieve blocks on the blockchain */
 object BlockChainRepository {
 
-    private class BlockNodeMutableWrapper(var BlockNode: BlockNode)
-
-    // Temporary java in-memory underlying key-value document store of blocks until better persistence solution is implemented
-    private val blockNodeStoreByCryptoHash: HashMap<String, BlockNode.Block> = HashMap()
-
-    // Temporary java in-memory cache of blocks until better caching solution is implemented
-    private val frontierBlockNodeWrapper: BlockNodeMutableWrapper
+    // Key-value document cache of blocks
+    private val blockNodeStoreByCryptoHash: HashMap<String, Block> = HashMap()
 
     private val isUpdating = AtomicBoolean(false)
 
     private const val ROOT = "root"
 
-    /**
-     * Assumes that the blockchain in the underlying data-store is consistent and forms an
-     * acyclic directed graph
-     */
-    private fun formBlockChain(): BlockNode {
-        val visitedBlockNodeByCryptoHash = HashMap<String, BlockNode>()
-        val stack = ArrayDeque<BlockNode.Block>(listOf(blockNodeStoreByCryptoHash[ROOT]))
-        while (stack.isNotEmpty()) {
-            val root = stack.pop()
-            val blocksToVisit = ArrayList<BlockNode.Block>()
-            for (parentHash in root.parentHashes) {
-                if (parentHash !in visitedBlockNodeByCryptoHash) {
-                    blocksToVisit.add(blockNodeStoreByCryptoHash[parentHash]!!)
-                }
-            }
-            if (blocksToVisit.isEmpty()) {
-                val rootNode = BlockNode(
-                    root,
-                    root.parentHashes.map { visitedBlockNodeByCryptoHash[it]!! })
-                visitedBlockNodeByCryptoHash[root.cryptoHash] = rootNode
-
-                if (stack.isEmpty()) {
-                    return rootNode
-                }
-            } else {
-                stack.push(root)
-                stack.addAll(blocksToVisit)
-            }
-        }
-        throw RuntimeException("Cycle in blockchain found!")
-    }
-
     init {
-        blockNodeStoreByCryptoHash["GenesisCryptoHashUsingSHA2"] = BlockNode.Block(
-            "Genesis",
-            0L,
-            "Origin",
-            emptyList(),
-            listOf(
-                Transaction(
-                    Transaction.TransactionType.CERTIFICATE,
-                    "Edwin : 12345",
-                    "EdwinSignedCertificate"
+        blockNodeStoreByCryptoHash["GenesisCryptoHashUsingSHA2"] =
+                Block(
+                    "Genesis",
+                    0L,
+                    "Origin",
+                    emptyList(),
+                    listOf(
+                        Transaction(
+                            Transaction.TransactionType.CERTIFICATE,
+                            "Edwin : 12345",
+                            "EdwinSignedCertificate"
+                        )
+                    ),
+                    "GenesisSignatureUsingAdminPrivateKey",
+                    "GenesisCryptoHashUsingSHA2"
                 )
-            ),
-            "GenesisSignatureUsingAdminPrivateKey",
-            "GenesisCryptoHashUsingSHA2"
-        )
 
-        blockNodeStoreByCryptoHash["LeftChildCryptoHashUsingSha2"] = BlockNode.Block(
-            "Genesis",
-            0L,
-            "Origin",
-            emptyList(),
-            listOf(
-                Transaction(
-                    Transaction.TransactionType.CERTIFICATE,
-                    "Edwin : 12345",
-                    "EdwinSignedCertificate"
+        blockNodeStoreByCryptoHash["LeftChildCryptoHashUsingSha2"] =
+                Block(
+                    "Edwin",
+                    10L,
+                    "Ithaca",
+                    listOf("GenesisCryptoHashUsingSHA2"),
+                    listOf(
+                        Transaction(
+                            Transaction.TransactionType.CERTIFICATE,
+                            "WeitaoMedicalRecordId",
+                            "Need emergency access to Edwin medical record"
+                        )
+                    ),
+                    "LeftChildSignatureUsingEdwinPrivateKey",
+                    "LeftChildCryptoHashUsingSha2"
                 )
-            ),
-            "GenesisSignatureUsingAdminPrivateKey",
-            "GenesisCryptoHashUsingSHA2"
-        )
 
-        blockNodeStoreByCryptoHash["RightChildCryptoHashUsingSha2"] = BlockNode.Block(
-            "Weitao",
-            20L,
-            "New York City",
-            listOf("GenesisCryptoHashUsingSHA2"),
-            listOf(
-                Transaction(
-                    Transaction.TransactionType.RECORD,
-                    "EdwinMedicalRecordId",
-                    "Need emergency access to Edwin medical record"
+        blockNodeStoreByCryptoHash["RightChildCryptoHashUsingSha2"] =
+                Block(
+                    "Weitao",
+                    20L,
+                    "New York City",
+                    listOf("GenesisCryptoHashUsingSHA2"),
+                    listOf(
+                        Transaction(
+                            Transaction.TransactionType.RECORD,
+                            "EdwinMedicalRecordId",
+                            "Need emergency access to Edwin medical record"
+                        )
+                    ),
+                    "RightChildSignatureUsingWeitaoPrivateKey",
+                    "RightChildCryptoHashUsingSha2"
                 )
-            ),
-            "RightChildSignatureUsingWeitaoPrivateKey",
-            "RightChildCryptoHashUsingSha2"
-        )
 
-        blockNodeStoreByCryptoHash["EdwinSigCryptoHashUsingSha2"] = BlockNode.Block(
-            "Edwin",
-            30L,
-            "Ithaca",
-            listOf("LeftChildCryptoHashUsingSha2", "RightChildCryptoHashUsingSha2"),
-            listOf(
-                Transaction(
-                    Transaction.TransactionType.SIGNATURE,
-                    "My predecessor accesses have been recorded onto my blockchain",
-                    "Signing off"
+        blockNodeStoreByCryptoHash["EdwinSigCryptoHashUsingSha2"] =
+                Block(
+                    "Edwin",
+                    30L,
+                    "Ithaca",
+                    listOf("LeftChildCryptoHashUsingSha2", "RightChildCryptoHashUsingSha2"),
+                    listOf(
+                        Transaction(
+                            Transaction.TransactionType.SIGNATURE,
+                            "My predecessor accesses have been recorded onto my blockchain",
+                            "Signing off"
+                        )
+                    ),
+                    "EdwinSigSignatureUsingEdwinPrivateKey",
+                    "EdwinSigCryptoHashUsingSha2"
                 )
-            ),
-            "EdwinSigSignatureUsingEdwinPrivateKey",
-            "EdwinSigCryptoHashUsingSha2"
-        )
 
-        val root = BlockNode.Block(
+        val root = Block(
             "Weitao",
             40L,
             "New York City",
@@ -135,11 +102,10 @@ object BlockChainRepository {
         )
         blockNodeStoreByCryptoHash["WeitaoSigCryptoHashUsingSha2"] = root
         blockNodeStoreByCryptoHash[ROOT] = root
-        frontierBlockNodeWrapper = BlockNodeMutableWrapper(formBlockChain())
     }
 
-    fun inBlockChain(cryptoHash: String): Boolean {
-        synchronized(frontierBlockNodeWrapper) {
+    fun containsBlockWithHash(cryptoHash: String): Boolean {
+        synchronized(blockNodeStoreByCryptoHash) {
             return cryptoHash in blockNodeStoreByCryptoHash
         }
     }
@@ -157,8 +123,11 @@ object BlockChainRepository {
         TODO()
     }
 
-    /** Create a new block with the specified transactions */
-    fun createNewBlock(transactions: List<Transaction>): BlockNode.Block {
+    /**
+     * Generates a new frontier block with the specified transactions, but is not added to the
+     * repository
+     */
+    fun generateNewBlock(transactions: List<Transaction>): Block {
         TODO()
     }
 
@@ -171,11 +140,10 @@ object BlockChainRepository {
     }
 
     /** Update the cached blockchain */
-    fun updateBlockChain(newBlocks: List<BlockNode.Block>, rootBlock: BlockNode.Block) {
-        synchronized(frontierBlockNodeWrapper) {
+    fun updateBlockChain(newBlocks: List<Block>, rootBlock: Block) {
+        synchronized(blockNodeStoreByCryptoHash) {
             newBlocks.forEach({ blockNodeStoreByCryptoHash[it.cryptoHash] = it })
             blockNodeStoreByCryptoHash[ROOT] = rootBlock
-            frontierBlockNodeWrapper.BlockNode = formBlockChain()
         }
     }
 
@@ -184,22 +152,30 @@ object BlockChainRepository {
         isUpdating.set(false)
     }
 
-    fun getBlockChain(): BlockNode {
-        synchronized(frontierBlockNodeWrapper) {
-            return frontierBlockNodeWrapper.BlockNode
+    /**
+     * Retrieves the frontier block in the blockchain
+     * @throws BlockNotFoundException if the frontier block was never initialized
+     */
+    fun getFrontierBlock(): Block {
+        synchronized(blockNodeStoreByCryptoHash) {
+            return blockNodeStoreByCryptoHash.getOrElse(ROOT, {
+                throw BlockNotFoundException("Root block was not initialized in the blockchain")
+            })
         }
     }
 
     /**
-     * Retrieves and returns the list of parent blocks for each specified block identified by
-     * its cryptohash in the order it was given
+     * Retrieves the blocks in the local blockchain corresponding to the provided cryptohashes in
+     * the order they were given
+     * @throws BlockNotFoundException if a specified cryptohash does not correspond to any block in
+     *                                the local blockchain
      */
-    fun getBlocks(blockCryptoHashes: List<String>): List<BlockNode.Block> {
-        synchronized(frontierBlockNodeWrapper) {
+    fun getBlocks(blockCryptoHashes: Collection<String>): List<Block> {
+        synchronized(blockNodeStoreByCryptoHash) {
             return blockCryptoHashes.map {
-                blockNodeStoreByCryptoHash.getOrElse(
-                    it,
-                    { throw RuntimeException("Block with hash $it was not found in the blockchain") })
+                blockNodeStoreByCryptoHash.getOrElse(it, {
+                    throw BlockNotFoundException("Block with hash $it was not found in the blockchain")
+                })
             }
 
         }
