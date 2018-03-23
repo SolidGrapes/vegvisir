@@ -12,6 +12,7 @@ import android.view.View
 import edu.cornell.em577.tamperprooflogging.data.model.Block
 import edu.cornell.em577.tamperprooflogging.data.source.BlockChainRepository
 import java.util.*
+import kotlin.math.pow
 import kotlin.math.sign
 
 class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
@@ -140,10 +141,18 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         canvas.drawCircle(point.x.toFloat(), point.y.toFloat(), NODE_RADIUS.toFloat(), paint)
     }
 
+    private fun getDistance(src: Point, dest: Point): Double {
+        return Math.sqrt((src.x - dest.x).toDouble().pow(2) + (src.y - dest.y).toDouble().pow(2))
+    }
+
     private fun drawEdge(canvas: Canvas, src: Point, dest: Point) {
         paint.reset()
         edge.moveTo(src.x.toFloat(), src.y.toFloat())
         edge.lineTo(dest.x.toFloat(), dest.y.toFloat())
+
+        val distance = getDistance(src, dest)
+        val xCoord = src.x + (dest.x.toFloat() - src.x) * (distance - NODE_RADIUS)/distance
+        val yCoord = src.y + (dest.y.toFloat() - src.y) * (distance - NODE_RADIUS)/distance
 
         val arrowRadianOffset = Math.PI * (ARROW_DEGREE_OFFSET/180.0)
         Log.d("ArrowRadianOffset", "$arrowRadianOffset")
@@ -151,8 +160,8 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         val positiveOffsetSin = Math.sin(arrowRadianOffset)
         val negativeOffsetCos = Math.cos(-arrowRadianOffset)
         val negativeOffsetSin = Math.sin(-arrowRadianOffset)
-        val arrowXCoord = Math.copySign(ARROW_LENGTH.toFloat(), src.x.toFloat() - dest.x)
-        val arrowYCoord = Math.copySign(ARROW_LENGTH.toFloat(), src.y.toFloat() - dest.y)
+        val arrowXCoord = (src.x.toFloat() - dest.x) * ARROW_LENGTH/distance
+        val arrowYCoord = (src.y.toFloat() - dest.y) * ARROW_LENGTH/distance
 
         Log.d("ArrowXCoord", "$arrowXCoord")
         Log.d("ArrowYCoord", "$arrowYCoord")
@@ -169,14 +178,13 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         Log.d("NegativeOffsetArrowXCoord", "$negativeOffsetArrowXCoord")
         Log.d("NegativeOffsetArrowYCoord", "$negativeOffsetArrowYCoord")
 
-        val offsetXCoord = NODE_RADIUS * sign(src.x.toFloat() - dest.x)
-        val offsetYCoord = NODE_RADIUS * sign(src.y.toFloat() - dest.y)
 
-        leftArrowEdge.moveTo(dest.x.toFloat() + offsetXCoord, dest.y.toFloat() + offsetYCoord)
-        leftArrowEdge.lineTo((dest.x.toFloat() + offsetXCoord + positiveOffsetArrowXCoord).toFloat(), (dest.y.toFloat() + offsetYCoord + positiveOffsetArrowYCoord).toFloat())
 
-        rightArrowEdge.moveTo(dest.x.toFloat() + offsetXCoord, dest.y.toFloat() + offsetYCoord)
-        rightArrowEdge.lineTo((dest.x.toFloat() + offsetXCoord + negativeOffsetArrowXCoord).toFloat(), (dest.y.toFloat() + offsetYCoord + negativeOffsetArrowYCoord).toFloat())
+        leftArrowEdge.moveTo(xCoord.toFloat(), yCoord.toFloat())
+        leftArrowEdge.lineTo((xCoord.toFloat() + positiveOffsetArrowXCoord).toFloat(), (yCoord + positiveOffsetArrowYCoord).toFloat())
+
+        rightArrowEdge.moveTo(xCoord.toFloat(), yCoord.toFloat())
+        rightArrowEdge.lineTo((xCoord.toFloat() + negativeOffsetArrowXCoord).toFloat(), (yCoord + negativeOffsetArrowYCoord).toFloat())
 
         paint.strokeWidth = EDGE_WIDTH.toFloat()
         paint.style = Paint.Style.STROKE
