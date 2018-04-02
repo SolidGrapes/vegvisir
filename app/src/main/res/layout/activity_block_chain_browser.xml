@@ -19,4 +19,13 @@
         android:layout_gravity="bottom|end"
         android:onClick="addBlockButtonListener"/>
 
+    <Button
+        android:id="@+id/logout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/logout"
+        android:layout_gravity="bottom|start"
+        android:onClick="logoutButtonListener"/>
+
+
 </edu.cornell.em577.tamperprooflogging.presentation.BlockChainBrowserLayout>

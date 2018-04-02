@@ -1,7 +1,9 @@
 <resources>
-    <!--General-->
-    <string name="app_name">TamperProofLogging</string>
-    <string name="logout">Log out</string>
+    <string name="app_name">Vegvisir</string>
+    <string name="logout">Logout</string>
+    <string name="login">Login</string>
     <string name="add_block">Add Block</string>
-    <string name="view_open_transactions">View Open Transactions</string>
+    <string name="enter_username">Enter Username</string>
+    <string name="enter_password">Enter Password</string>
+    <string name="incorrect_credentials">Incorrect Credentials</string>
 </resources>

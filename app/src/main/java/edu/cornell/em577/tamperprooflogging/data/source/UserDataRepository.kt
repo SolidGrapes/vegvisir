@@ -14,7 +14,9 @@ import java.security.spec.X509EncodedKeySpec
 /** Repository interfacing with a storage layer to store/retrieve user data */
 class UserDataRepository private constructor(resources: Resources) {
 
-    companion object : SingletonHolder<UserDataRepository, Resources>(::UserDataRepository)
+    companion object : SingletonHolder<UserDataRepository, Resources>(::UserDataRepository) {
+        private const val DEFAULT_USER = "Genesis"
+    }
 
     private val userById = HashMap<String, User>()
 
