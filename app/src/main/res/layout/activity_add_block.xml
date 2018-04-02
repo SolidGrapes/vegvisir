@@ -1,9 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    tools:context="edu.cornell.em577.tamperprooflogging.presentation.AddBlockActivity"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+<RelativeLayout
+    xmlns:android = "http://schemas.android.com/apk/res/android"
+    xmlns:tools = "http://schemas.android.com/tools"
+    android:layout_width = "match_parent"
+    android:layout_height = "match_parent"
+    android:paddingStart = "32dp"
+    android:paddingLeft = "32dp"
+    android:paddingRight = "32dp"
+    android:paddingTop = "8dp"
+    android:paddingBottom = "8dp"
+    tools:context="edu.cornell.em577.tamperprooflogging.presentation.AddBlockActivity">
 
-</android.support.constraint.ConstraintLayout>
+
+    <EditText
+        android:inputType="text"
+        android:layout_width = "wrap_content"
+        android:layout_height = "wrap_content"
+        android:id = "@+id/enterContent"
+        android:hint="@string/enter_content"
+        android:focusable = "true"
+        android:textColorHighlight = "#ff7eff15"
+        android:textColorHint = "#ffff25e6"
+        android:layout_marginTop = "46dp"
+        android:layout_alignParentLeft = "true"
+        android:layout_alignParentStart = "true"
+        android:layout_alignParentRight = "true"
+        android:layout_alignParentEnd = "true" />
+
+    <EditText
+        android:inputType="text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:id="@+id/enterComment"
+        android:layout_below="@+id/enterContent"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignRight="@+id/enterContent"
+        android:layout_alignEnd="@+id/enterContent"
+        android:textColorHint="#ffff299f"
+        android:hint="@string/enter_comment" />
+
+    <Button
+        android:id="@+id/addTransaction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignStart="@+id/enterComment"
+        android:layout_alignLeft="@+id/enterComment"
+        android:layout_alignTop="@+id/createBlockButton"
+        android:onClick="addTransactionButtonListener"
+        android:text="@string/add_transaction" />
+
+    <Button
+        android:id="@+id/createBlockButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignEnd="@+id/enterComment"
+        android:layout_alignRight="@+id/enterComment"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="152dp"
+        android:onClick="createBlockButtonListener"
+        android:text="@string/create_block" />
+
+    <ListView
+        android:id="@+id/transactionList"
+        android:layout_width="match_parent"
+        android:layout_height="176dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="35dp" />
+
+    <TextView
+        android:id="@+id/mergeInProgress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:text="@string/merge_in_progress"
+        android:textColor="#FF0000"
+        android:textSize="25sp"
+        android:visibility="invisible" />
+</RelativeLayout>

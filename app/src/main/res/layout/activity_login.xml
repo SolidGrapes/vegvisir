@@ -12,6 +12,7 @@
     tools:context="edu.cornell.em577.tamperprooflogging.presentation.LoginActivity">
 
     <EditText
+        android:inputType="text"
         android:layout_width = "wrap_content"
         android:layout_height = "wrap_content"
         android:id = "@+id/enterUsername"

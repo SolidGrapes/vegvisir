@@ -96,7 +96,9 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
                 val signedBlockToAdd =
                     SignedBlock(unsignedBlockToAdd, unsignedBlockToAdd.sign(applicationResources))
                 val rootDocument = blockstore.getDocument(ROOT)
-                rootDocument.putProperties(signedBlockToAdd.toJson())
+                val properties = HashMap(rootDocument.properties)
+                properties.putAll(signedBlockToAdd.toJson())
+                rootDocument.putProperties(properties)
                 signedBlockByCryptoHash[ROOT] = signedBlockToAdd
             }
             isUpdating.set(false)

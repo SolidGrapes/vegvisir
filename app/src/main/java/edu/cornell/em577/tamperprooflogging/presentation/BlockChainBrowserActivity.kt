@@ -1,5 +1,6 @@
 package edu.cornell.em577.tamperprooflogging.presentation
 
+import android.content.Intent
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.view.View
@@ -18,7 +19,8 @@ class BlockChainBrowserActivity : AppCompatActivity() {
     }
 
     fun addBlockButtonListener(view: View) {
-        // TODO: Render new activity for adding blocks
+        val intent = Intent(this, AddBlockActivity::class.java)
+        startActivity(intent)
     }
 
     fun logoutButtonListener(view: View) {

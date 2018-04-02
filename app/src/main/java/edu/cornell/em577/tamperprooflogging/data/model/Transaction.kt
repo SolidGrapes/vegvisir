@@ -19,7 +19,6 @@ data class Transaction(
         private const val TYPE = "type"
         private const val CONTENT = "content"
         private const val COMMENT = "comment"
-        private const val GENESIS = "Genesis"
 
         fun fromJson(properties: Map<String, Any>): Transaction {
             return Transaction(
