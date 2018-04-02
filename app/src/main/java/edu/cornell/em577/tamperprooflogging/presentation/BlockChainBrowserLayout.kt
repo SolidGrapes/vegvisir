@@ -1,4 +1,4 @@
-package edu.cornell.em577.tamperprooflogging.blockchainbrowser
+package edu.cornell.em577.tamperprooflogging.presentation
 
 import android.content.Context
 import android.util.AttributeSet

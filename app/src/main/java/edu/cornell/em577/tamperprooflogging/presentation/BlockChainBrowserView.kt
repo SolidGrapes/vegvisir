@@ -1,4 +1,4 @@
-package edu.cornell.em577.tamperprooflogging.blockchainbrowser
+package edu.cornell.em577.tamperprooflogging.presentation
 
 import android.content.Context
 import android.graphics.Canvas
@@ -8,7 +8,7 @@ import android.graphics.Path
 import android.graphics.Point
 import android.util.AttributeSet
 import android.view.View
-import edu.cornell.em577.tamperprooflogging.data.model.Block
+import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 import edu.cornell.em577.tamperprooflogging.data.source.BlockChainRepository
 import java.util.*
 import kotlin.math.pow
@@ -21,7 +21,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         val canvasBlock: CanvasBlock,
         val parents: List<CanvasBlockNode>
     ) {
-        data class CanvasBlock(val block: Block, val point: Point)
+        data class CanvasBlock(val signedBlock: SignedBlock, val point: Point)
     }
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -44,60 +44,69 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
 
     /** Maps blocks in the repository to canvas blocks */
     private fun blocksToCanvasBlocks(): HashMap<String, CanvasBlockNode.CanvasBlock> {
-        val frontierBlock = BlockChainRepository.getFrontierBlock()
+        val blockRepository = BlockChainRepository.getInstance(Pair(context, resources))
+        val rootBlock = blockRepository.getRootBlock()
         val canvasBlockByCryptoHash = HashMap<String, CanvasBlockNode.CanvasBlock>()
-        var currentLayer = listOf(frontierBlock)
+        var currentLayer = listOf(rootBlock)
         var currentLayerNum = 0
         while (currentLayer.isNotEmpty()) {
             (0 until currentLayer.size).forEach({
-                canvasBlockByCryptoHash[currentLayer[it].cryptoHash] = CanvasBlockNode.CanvasBlock(
-                    currentLayer[it],
-                    Point(
-                        BASE_X + currentLayerNum * INTER_LAYER_DISTANCE,
-                        BASE_Y + (it - currentLayer.size / 2) * INTRA_LAYER_DISTANCE
-                    )
-                )
+                canvasBlockByCryptoHash[currentLayer[it].cryptoHash] =
+                        CanvasBlockNode.CanvasBlock(
+                            currentLayer[it],
+                            Point(
+                                BASE_X + currentLayerNum * INTER_LAYER_DISTANCE,
+                                BASE_Y + (it - currentLayer.size / 2) * INTRA_LAYER_DISTANCE
+                            )
+                        )
             })
             val currentLayerParentHashes = LinkedHashSet<String>()
             for (block in currentLayer) {
-                currentLayerParentHashes.addAll(block.parentHashes)
+                currentLayerParentHashes.addAll(block.unsignedBlock.parentHashes)
             }
-            currentLayer = BlockChainRepository.getBlocks(currentLayerParentHashes)
+            currentLayer = blockRepository.getBlocks(currentLayerParentHashes)
             currentLayerNum += 1
         }
         return canvasBlockByCryptoHash
     }
 
-    /** Maps specified canvas blocks to canvas block nodes */
+    /** Maps specified canvas blocks to canvas signedBlock nodes */
     private fun canvasBlocksToCanvasBlockNodes(
-        canvasBlockByCryptoHash: HashMap<String, CanvasBlockNode.CanvasBlock>): CanvasBlockNode {
-        val frontierBlock = BlockChainRepository.getFrontierBlock()
+        canvasBlockByCryptoHash: HashMap<String, CanvasBlockNode.CanvasBlock>
+    ): CanvasBlockNode {
+        val blockRepository = BlockChainRepository.getInstance(Pair(context, resources))
+        val frontierBlock = blockRepository.getRootBlock()
         val visitedCanvasBlockNodeByCryptoHash = HashMap<String, CanvasBlockNode>()
-        val stack = ArrayDeque<CanvasBlockNode.CanvasBlock>(listOf(
-            canvasBlockByCryptoHash[frontierBlock.cryptoHash]))
+        val stack = ArrayDeque<CanvasBlockNode.CanvasBlock>(
+            listOf(
+                canvasBlockByCryptoHash[frontierBlock.cryptoHash]
+            )
+        )
 
         while (stack.isNotEmpty()) {
             val canvasRootBlock = stack.pop()
             val canvasBlocksToVisit = ArrayList<CanvasBlockNode.CanvasBlock>()
-            for (parentHash in canvasRootBlock.block.parentHashes) {
+            for (parentHash in canvasRootBlock.signedBlock.unsignedBlock.parentHashes) {
                 if (parentHash !in visitedCanvasBlockNodeByCryptoHash) {
                     canvasBlocksToVisit.add(canvasBlockByCryptoHash[parentHash]!!)
                 }
             }
             if (canvasBlocksToVisit.isEmpty()) {
-                val rootNode = CanvasBlockNode(
-                    canvasRootBlock,
-                    canvasRootBlock.block.parentHashes.map {
-                        visitedCanvasBlockNodeByCryptoHash[it]!!
-                    })
-                visitedCanvasBlockNodeByCryptoHash[canvasRootBlock.block.cryptoHash] = rootNode
+                val rootNode =
+                    CanvasBlockNode(
+                        canvasRootBlock,
+                        canvasRootBlock.signedBlock.unsignedBlock.parentHashes.map {
+                            visitedCanvasBlockNodeByCryptoHash[it]!!
+                        })
+                visitedCanvasBlockNodeByCryptoHash[canvasRootBlock.signedBlock.cryptoHash] =
+                        rootNode
 
                 if (stack.isEmpty()) {
                     return rootNode
                 }
             } else {
                 stack.push(canvasRootBlock)
-                canvasBlocksToVisit.forEach({ stack.push(it)} )
+                canvasBlocksToVisit.forEach({ stack.push(it) })
             }
         }
         throw RuntimeException("Cycle in blockchain found!")
@@ -119,13 +128,13 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
     private fun drawGraph(canvas: Canvas) {
         drawNode(canvas, frontierCanvasBlockNode.canvasBlock.point)
         val queue = ArrayDeque(listOf(frontierCanvasBlockNode))
-        val visited = HashSet(listOf(frontierCanvasBlockNode.canvasBlock.block.cryptoHash))
+        val cryptoHashesOfVisitedBlocks = HashSet(listOf(frontierCanvasBlockNode.canvasBlock.signedBlock.cryptoHash))
         while (queue.isNotEmpty()) {
             val currentNode = queue.pop()
             for (parentNode in currentNode.parents) {
-                if (parentNode.canvasBlock.block.cryptoHash !in visited) {
+                if (parentNode.canvasBlock.signedBlock.cryptoHash !in cryptoHashesOfVisitedBlocks) {
                     drawNode(canvas, parentNode.canvasBlock.point)
-                    visited.add(parentNode.canvasBlock.block.cryptoHash)
+                    cryptoHashesOfVisitedBlocks.add(parentNode.canvasBlock.signedBlock.cryptoHash)
                     queue.addLast(parentNode)
                 }
                 drawEdge(canvas, currentNode.canvasBlock.point, parentNode.canvasBlock.point)
@@ -141,7 +150,8 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
     }
 
     private fun getDistance(src: Point, dest: Point): Double {
-        return Math.sqrt((src.x - dest.x).toDouble().pow(2) + (src.y - dest.y).toDouble().pow(2))
+        return Math.sqrt((src.x - dest.x).toDouble().pow(2) +
+                (src.y - dest.y).toDouble().pow(2))
     }
 
     private fun drawEdge(canvas: Canvas, src: Point, dest: Point) {
@@ -150,27 +160,37 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         edge.lineTo(dest.x.toFloat(), dest.y.toFloat())
 
         val distance = getDistance(src, dest)
-        val xCoord = src.x + (dest.x.toFloat() - src.x) * (distance - NODE_RADIUS)/distance
-        val yCoord = src.y + (dest.y.toFloat() - src.y) * (distance - NODE_RADIUS)/distance
+        val xCoord = src.x + (dest.x.toFloat() - src.x) * (distance - NODE_RADIUS) / distance
+        val yCoord = src.y + (dest.y.toFloat() - src.y) * (distance - NODE_RADIUS) / distance
 
-        val arrowRadianOffset = Math.PI * (ARROW_DEGREE_OFFSET/180.0)
+        val arrowRadianOffset = Math.PI * (ARROW_DEGREE_OFFSET / 180.0)
         val positiveOffsetCos = Math.cos(arrowRadianOffset)
         val positiveOffsetSin = Math.sin(arrowRadianOffset)
         val negativeOffsetCos = Math.cos(-arrowRadianOffset)
         val negativeOffsetSin = Math.sin(-arrowRadianOffset)
-        val arrowXCoord = (src.x.toFloat() - dest.x) * ARROW_LENGTH/distance
-        val arrowYCoord = (src.y.toFloat() - dest.y) * ARROW_LENGTH/distance
+        val arrowXCoord = (src.x.toFloat() - dest.x) * ARROW_LENGTH / distance
+        val arrowYCoord = (src.y.toFloat() - dest.y) * ARROW_LENGTH / distance
 
-        val positiveOffsetArrowXCoord = positiveOffsetCos * arrowXCoord - positiveOffsetSin * arrowYCoord
-        val positiveOffsetArrowYCoord = positiveOffsetSin * arrowXCoord + positiveOffsetCos * arrowYCoord
-        val negativeOffsetArrowXCoord = negativeOffsetCos * arrowXCoord - negativeOffsetSin * arrowYCoord
-        val negativeOffsetArrowYCoord = negativeOffsetSin * arrowXCoord + negativeOffsetCos * arrowYCoord
+        val positiveOffsetArrowXCoord =
+            positiveOffsetCos * arrowXCoord - positiveOffsetSin * arrowYCoord
+        val positiveOffsetArrowYCoord =
+            positiveOffsetSin * arrowXCoord + positiveOffsetCos * arrowYCoord
+        val negativeOffsetArrowXCoord =
+            negativeOffsetCos * arrowXCoord - negativeOffsetSin * arrowYCoord
+        val negativeOffsetArrowYCoord =
+            negativeOffsetSin * arrowXCoord + negativeOffsetCos * arrowYCoord
 
         leftArrowEdge.moveTo(xCoord.toFloat(), yCoord.toFloat())
-        leftArrowEdge.lineTo((xCoord.toFloat() + positiveOffsetArrowXCoord).toFloat(), (yCoord + positiveOffsetArrowYCoord).toFloat())
+        leftArrowEdge.lineTo(
+            (xCoord.toFloat() + positiveOffsetArrowXCoord).toFloat(),
+            (yCoord + positiveOffsetArrowYCoord).toFloat()
+        )
 
         rightArrowEdge.moveTo(xCoord.toFloat(), yCoord.toFloat())
-        rightArrowEdge.lineTo((xCoord.toFloat() + negativeOffsetArrowXCoord).toFloat(), (yCoord + negativeOffsetArrowYCoord).toFloat())
+        rightArrowEdge.lineTo(
+            (xCoord.toFloat() + negativeOffsetArrowXCoord).toFloat(),
+            (yCoord + negativeOffsetArrowYCoord).toFloat()
+        )
 
         paint.strokeWidth = EDGE_WIDTH.toFloat()
         paint.style = Paint.Style.STROKE
