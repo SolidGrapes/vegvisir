@@ -2,6 +2,7 @@ package edu.cornell.em577.tamperprooflogging.data.model
 
 import android.content.res.Resources
 import android.util.Base64
+import com.vegvisir.data.ProtocolMessageProto
 import java.security.MessageDigest
 
 /**
@@ -29,6 +30,13 @@ data class SignedBlock(
     companion object {
         private const val SIGNATURE = "signature"
 
+        fun fromProto(protoSignedBlock: ProtocolMessageProto.SignedBlock): SignedBlock {
+            return SignedBlock(
+                UnsignedBlock.fromProto(protoSignedBlock.unsignedBlock),
+                protoSignedBlock.signature
+            )
+        }
+
         fun fromJson(properties: Map<String, Any>): SignedBlock {
             return SignedBlock(UnsignedBlock.fromJson(properties), properties[SIGNATURE] as String)
         }
@@ -40,6 +48,13 @@ data class SignedBlock(
             val signOff = UnsignedBlock.generateSignOff(userId, timestamp, parentHashes, resources)
             return SignedBlock(signOff, signOff.sign(resources))
         }
+    }
+
+    fun toProto(): ProtocolMessageProto.SignedBlock {
+        return ProtocolMessageProto.SignedBlock.newBuilder()
+            .setUnsignedBlock(unsignedBlock.toProto())
+            .setSignature(signature)
+            .build()
     }
 
     fun toJson(): HashMap<String, Any> {

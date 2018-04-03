@@ -1,6 +1,7 @@
 package edu.cornell.em577.tamperprooflogging.data.model
 
 import android.content.res.Resources
+import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 
 /** Core data in a block */
@@ -19,6 +20,14 @@ data class Transaction(
         private const val TYPE = "type"
         private const val CONTENT = "content"
         private const val COMMENT = "comment"
+
+        fun fromProto(protoTransaction: ProtocolMessageProto.Transaction): Transaction {
+            return Transaction(
+                TransactionType.valueOf(protoTransaction.type),
+                protoTransaction.content,
+                protoTransaction.comment
+            )
+        }
 
         fun fromJson(properties: Map<String, Any>): Transaction {
             return Transaction(
@@ -45,6 +54,14 @@ data class Transaction(
                 "$userId has signed off on all predecessor transactions"
             )
         }
+    }
+
+    fun toProto(): ProtocolMessageProto.Transaction {
+        return ProtocolMessageProto.Transaction.newBuilder()
+            .setType(type.name)
+            .setContent(content)
+            .setComment(comment)
+            .build()
     }
 
     fun toJson(): Map<String, Any> {

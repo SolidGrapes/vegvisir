@@ -67,6 +67,8 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
         val result = allDocsQuery.run()
         while (result.hasNext()) {
             val row = result.next()
+            Log.d("BlockDocumentId", row.documentId)
+            Log.d("BlockDocumentProperties", row.documentProperties.toString())
             signedBlockByCryptoHash[row.documentId] = SignedBlock.fromJson(row.documentProperties as Map<String, Any>)
         }
     }
@@ -95,11 +97,16 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
                 )
                 val signedBlockToAdd =
                     SignedBlock(unsignedBlockToAdd, unsignedBlockToAdd.sign(applicationResources))
+
+                signedBlockByCryptoHash[signedBlockToAdd.cryptoHash] = signedBlockToAdd
+                val document = blockstore.getDocument(signedBlockToAdd.cryptoHash)
+                document.putProperties(signedBlockToAdd.toJson())
+
+                signedBlockByCryptoHash[ROOT] = signedBlockToAdd
                 val rootDocument = blockstore.getDocument(ROOT)
                 val properties = HashMap(rootDocument.properties)
                 properties.putAll(signedBlockToAdd.toJson())
                 rootDocument.putProperties(properties)
-                signedBlockByCryptoHash[ROOT] = signedBlockToAdd
             }
             isUpdating.set(false)
             return true
@@ -115,7 +122,8 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
     }
 
     /**
-     * Updates the repository with the signed blocks to add as well as the new signed root block
+     * Updates the repository with the signed blocks to add as well as the new signed root block.
+     * Signed blocks to add must not already exist in the repository
      */
     fun updateBlockChain(signedBlocksToAdd: List<SignedBlock>, rootSignedBlock: SignedBlock) {
         synchronized(signedBlockByCryptoHash) {
@@ -124,9 +132,12 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
                 val document = blockstore.getDocument(it.cryptoHash)
                 document.putProperties(it.toJson())
             })
-            val rootDocument = blockstore.getDocument(ROOT)
-            rootDocument.putProperties(rootSignedBlock.toJson())
+
             signedBlockByCryptoHash[ROOT] = rootSignedBlock
+            val rootDocument = blockstore.getDocument(ROOT)
+            val properties = HashMap(rootDocument.properties)
+            properties.putAll(rootSignedBlock.toJson())
+            rootDocument.putProperties(properties)
         }
     }
 

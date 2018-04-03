@@ -1,0 +1,67 @@
+syntax = "proto2";
+
+package data;
+
+option java_package = "com.vegvisir.data";
+option java_outer_classname = "ProtocolMessageProto";
+
+message Transaction {
+    optional string type = 1;
+    optional string content = 2;
+    optional string comment = 3;
+}
+
+message UnsignedBlock {
+    optional string user_id = 1;
+    optional int64 timestamp = 2;
+    optional string location = 3;
+    repeated string parent_hashes = 4;
+    repeated Transaction transactions = 5;
+}
+
+message SignedBlock {
+    optional UnsignedBlock unsigned_block = 1;
+    optional string signature = 2;
+}
+
+message GetRemoteRootBlockResponse {
+    optional SignedBlock remote_root_block = 1;
+    optional bool failed_to_retrieve = 2;
+}
+
+message GetRemoteBlocksResponse {
+    repeated SignedBlock remote_blocks = 1;
+    optional bool failed_to_retrieve = 2;
+}
+
+message GetRemoteSignOffDataResponse {
+    optional string remote_user_id = 1;
+    optional int64 remote_timestamp = 2;
+    optional bool failed_to_retrieve = 3;
+}
+
+message GetRemoteBlocksRequest {
+    repeated string crypto_hashes = 1;
+}
+
+message ProtocolMessage {
+    enum MessageType {
+        GET_REMOTE_ROOT_BLOCK_RESPONSE = 0;
+        GET_REMOTE_BLOCKS_RESPONSE = 1;
+        GET_REMOTE_SIGN_OFF_DATA_RESPONSE = 2;
+        GET_REMOTE_ROOT_BLOCK_REQUEST = 3;
+        GET_REMOTE_BLOCKS_REQUEST = 4;
+        GET_REMOTE_SIGN_OFF_DATA_REQUEST = 5;
+        MERGE_COMPLETE = 6;
+    }
+    required MessageType type = 1;
+
+    oneof body {
+        GetRemoteRootBlockResponse get_remote_root_block_response = 2;
+        GetRemoteBlocksResponse get_remote_blocks_response = 3;
+        GetRemoteSignOffDataResponse get_remote_sign_off_data_response = 4;
+        GetRemoteBlocksRequest get_remote_blocks_request = 5;
+        bool no_body = 6;
+    }
+}
+

@@ -2,6 +2,7 @@ package edu.cornell.em577.tamperprooflogging.protocol
 
 import android.content.Context
 import android.content.res.Resources
+import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 import edu.cornell.em577.tamperprooflogging.data.source.BlockChainRepository
 import edu.cornell.em577.tamperprooflogging.protocol.exception.UnexpectedTerminationException
@@ -20,20 +21,13 @@ class MergeRemoteBlockChainProtocol(
     private val localTimestamp: Long
 ) {
 
-    companion object {
-        private const val MERGE_COMPLETE = "Merge Completed"
-        private const val TERMINATE = "Terminate"
-    }
-
-    val getRemoteRootBlockChannel = ArrayChannel<String>(1)
-    val getRemoteBlocksChannel = ArrayChannel<String>(1)
-    val getRemoteSignOffDataChannel = ArrayChannel<String>(1)
+    val responseChannel = ArrayChannel<ProtocolMessageProto.ProtocolMessage?>(1)
 
     /**
      * Retrieves and return the collection of all remote blocks to add, indexed on their cryptographic hashes, as well
      * as the cryptographic hashes of the new frontier set.
      */
-    private fun getRemoteBlocksToAdd(
+    private suspend fun getRemoteBlocksToAdd(
         currentRootBlock: SignedBlock,
         remoteRootBlock: SignedBlock
     ): Pair<HashMap<String, SignedBlock>, List<String>> {
@@ -76,7 +70,7 @@ class MergeRemoteBlockChainProtocol(
      * Populates the provided collection of blocks to add with the local and remote sign off blocks. Returns the
      * new root node of the blockchain.
      */
-    private fun addSignOffBlocks(
+    private suspend fun addSignOffBlocks(
         currentRootBlock: SignedBlock,
         remoteRootBlock: SignedBlock,
         blocksToAddByCryptoHash: HashMap<String, SignedBlock>,
@@ -124,38 +118,84 @@ class MergeRemoteBlockChainProtocol(
                 val (blocksToAddByCryptoHash, frontierHashes) = getRemoteBlocksToAdd(currentRootBlock, remoteRootBlock)
                 val root = addSignOffBlocks(currentRootBlock, remoteRootBlock, blocksToAddByCryptoHash, frontierHashes)
                 blockRepository.updateBlockChain(blocksToAddByCryptoHash.values.toList(), root)
-                // Send a MERGE_COMPLETE on the outgoing connection object
+                val mergeCompleteMessage = ProtocolMessageProto.ProtocolMessage.newBuilder()
+                    .setType(ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE)
+                    .setNoBody(true)
+                    .build()
+                    .toByteArray()
+                // Send mergeCompleteMessage on outgoing connection.
             }
             catch (ute: UnexpectedTerminationException) {}
         }
     }
 
-    private fun getRemoteRootBlock(): SignedBlock {
-        // Serializes and issues a request to the remote endpoint for its root block. Blocks
-        // execution until a response message is received from the message dispatcher. Upon
-        // receiving the response message, deserialize the message and return the resulting root block
-        // Throw a UnexpectedTerminationException if the parsed response is TERMINATE or if sending the request on
-        // the outgoing connection object throws an exception
-        TODO()
+    private suspend fun getRemoteRootBlock(): SignedBlock {
+        val request = ProtocolMessageProto.ProtocolMessage.newBuilder()
+            .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_REQUEST)
+            .setNoBody(true)
+            .build()
+            .toByteArray()
+        // Send request on outgoing connection.
+
+        while (true) {
+            val response = responseChannel.receive()
+            if (response == null) {
+                throw UnexpectedTerminationException("Network exception detected")
+            } else if (response.type ==
+                ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_RESPONSE) {
+                if (response.getRemoteRootBlockResponse.failedToRetrieve) {
+                    throw UnexpectedTerminationException("Remote exception detected")
+                }
+                return SignedBlock.fromProto(response.getRemoteRootBlockResponse.remoteRootBlock)
+            }
+        }
     }
 
-    private fun getRemoteBlocks(cryptoHashes: List<String>): List<SignedBlock> {
-        // Serializes and issues a request to the remote endpoint for a list of signed blocks specified
-        // by the provided list of cryptographic hashes, in that order. Blocks execution until a
-        // response message is received from the message dispatcher. Upon receiving the response
-        // message, deserialize the message and return the resulting list of signed blocks
-        // Throw a UnexpectedTerminationException if the parsed response is TERMINATE or if sending the request on
-        // the outgoing connection object throws an exception
-        TODO()
+    private suspend fun getRemoteBlocks(cryptoHashes: List<String>): List<SignedBlock> {
+        val request = ProtocolMessageProto.ProtocolMessage.newBuilder()
+            .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_REQUEST)
+            .setGetRemoteBlocksRequest(
+                ProtocolMessageProto.GetRemoteBlocksRequest.newBuilder()
+                    .addAllCryptoHashes(cryptoHashes)
+                    .build()
+            ).build()
+            .toByteArray()
+        // Send request on outgoing connection.
+
+        while (true) {
+            val response = responseChannel.receive()
+            if (response == null) {
+                throw UnexpectedTerminationException("Network exception detected")
+            } else if (response.type ==
+                ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_RESPONSE) {
+                if (response.getRemoteBlocksResponse.failedToRetrieve) {
+                    throw UnexpectedTerminationException("Remote exception detected")
+                }
+                return response.getRemoteBlocksResponse.remoteBlocksList.map { SignedBlock.fromProto(it) }
+            }
+        }
     }
 
-    private fun getRemoteSignOffData(): Pair<String, Long> {
-        // Serializes and issues a request to the remote endpoint for its sign off data.
-        // Block execution until a response message is received on getRemoteSignOffDataChannel. Upon receipt,
-        // deserialize the message and return the resulting sign off data comprising of remote userId and sign off
-        // timestamp.
-        // Throw a UnexpectedTerminationException if the parsed response is TERMINATE or if sending the request on
-        // the outgoing connection object throws an exception
-        TODO()
+    private suspend fun getRemoteSignOffData(): Pair<String, Long> {
+        val request = ProtocolMessageProto.ProtocolMessage.newBuilder()
+            .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_SIGN_OFF_DATA_REQUEST)
+            .setNoBody(true)
+            .build()
+            .toByteArray()
+        // Send request on outgoing connection.
+
+        while (true) {
+            val response = responseChannel.receive()
+            if (response == null) {
+                throw UnexpectedTerminationException("Network exception detected")
+            } else if (response.type ==
+                ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_SIGN_OFF_DATA_RESPONSE) {
+                if (response.getRemoteSignOffDataResponse.failedToRetrieve) {
+                    throw UnexpectedTerminationException("Remote exception detected")
+                }
+                return Pair(response.getRemoteSignOffDataResponse.remoteUserId,
+                    response.getRemoteSignOffDataResponse.remoteTimestamp)
+            }
+        }
     }
 }

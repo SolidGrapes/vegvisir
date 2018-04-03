@@ -3,6 +3,7 @@ package edu.cornell.em577.tamperprooflogging.data.model
 import android.content.res.Resources
 import android.util.Base64
 import android.util.Log
+import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 import java.security.Signature
 
@@ -25,6 +26,15 @@ data class UnsignedBlock(
         private const val PARENT_HASHES = "parentHashes"
         private const val TRANSACTIONS = "transactions"
 
+        fun fromProto(protoUnsignedBlock: ProtocolMessageProto.UnsignedBlock): UnsignedBlock {
+            return UnsignedBlock(
+                protoUnsignedBlock.userId,
+                protoUnsignedBlock.timestamp,
+                protoUnsignedBlock.location,
+                protoUnsignedBlock.parentHashesList,
+                protoUnsignedBlock.transactionsList.map { Transaction.fromProto(it) })
+        }
+
         fun fromJson(properties: Map<String, Any>): UnsignedBlock {
             return UnsignedBlock(
                 properties[USER_ID] as String,
@@ -44,6 +54,16 @@ data class UnsignedBlock(
             val location = UserDataRepository.getInstance(resources).getUser(userId).location
             return UnsignedBlock(userId, timestamp, location, parentHashes, listOf(Transaction.generateSignOff(userId)))
         }
+    }
+
+    fun toProto(): ProtocolMessageProto.UnsignedBlock {
+        return ProtocolMessageProto.UnsignedBlock.newBuilder()
+            .setUserId(userId)
+            .setTimestamp(timestamp)
+            .setLocation(location)
+            .addAllParentHashes(parentHashes)
+            .addAllTransactions(transactions.map { it.toProto() })
+            .build()
     }
 
     fun toJson(): HashMap<String, Any> {
