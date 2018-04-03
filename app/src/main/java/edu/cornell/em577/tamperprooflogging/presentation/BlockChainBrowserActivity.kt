@@ -37,7 +37,7 @@ class BlockChainBrowserActivity : AppCompatActivity() {
         }
 
         override fun onSingleTapUp(e: MotionEvent?): Boolean {
-            val blockTapped = activity.browserView?.getCanvasBlock(e?.x!!.toInt(), e.y.toInt() - 60)
+            val blockTapped = activity.browserView?.getCanvasBlock(e?.x!!.toInt(), e.y.toInt())
             if (blockTapped != null) {
                 val intent = Intent(activity, ViewBlockActivity::class.java)
                 intent.putExtra("SignedBlock", blockTapped.toProto().toByteArray())
