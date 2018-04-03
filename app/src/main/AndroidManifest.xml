@@ -18,6 +18,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".presentation.BlockChainBrowserActivity"/>
+        <activity android:name=".presentation.ViewBlockActivity"/>
         <activity android:name=".presentation.AddBlockActivity"/>
     </application>
 </manifest>

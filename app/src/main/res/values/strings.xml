@@ -11,4 +11,12 @@
     <string name="enter_username">Enter Username</string>
     <string name="enter_password">Enter Password</string>
     <string name="incorrect_credentials">Incorrect Credentials</string>
+
+    <string name="user_id">UserID:</string>
+    <string name="timestamp">Timestamp:</string>
+    <string name="location">Location:</string>
+    <string name="parent_hashes">Parent Hashes:</string>
+    <string name="signature">Signature:</string>
+    <string name="transactions">Transactions:</string>
+    <string name="crypto_hash">Cryptographic Hash:</string>
 </resources>

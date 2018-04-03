@@ -7,14 +7,16 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Point
 import android.util.AttributeSet
+import android.util.Log
+import android.view.DragEvent
+import android.view.GestureDetector
 import android.view.View
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 import edu.cornell.em577.tamperprooflogging.data.source.BlockChainRepository
 import java.util.*
 import kotlin.math.pow
 
-class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
-    View(context, attributeSet) {
+class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) : View(context, attributeSet) {
 
     /** A node in the directed acyclic graph of blocks that is fixed on a canvas */
     private data class CanvasBlockNode(
@@ -28,8 +30,9 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
     private val edge = Path()
     private val leftArrowEdge = Path()
     private val rightArrowEdge = Path()
-    private var frontierCanvasBlockNode: CanvasBlockNode =
-        canvasBlocksToCanvasBlockNodes(blocksToCanvasBlocks())
+    private var frontierCanvasBlockNode: CanvasBlockNode = canvasBlocksToCanvasBlockNodes(blocksToCanvasBlocks())
+    var xViewportOffset = 0
+    var yViewportOffset = 0
 
     companion object {
         private const val NODE_RADIUS = 15
@@ -39,7 +42,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         private const val INTRA_LAYER_DISTANCE = 50
         private const val INTER_LAYER_DISTANCE = 100
         private const val BASE_X = 100
-        private const val BASE_Y = 250
+        private const val BASE_Y = 100
     }
 
     /** Maps blocks in the repository to canvas blocks */
@@ -55,8 +58,8 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
                         CanvasBlockNode.CanvasBlock(
                             currentLayer[it],
                             Point(
-                                BASE_X + currentLayerNum * INTER_LAYER_DISTANCE,
-                                BASE_Y + (it - currentLayer.size / 2) * INTRA_LAYER_DISTANCE
+                                BASE_X - xViewportOffset + currentLayerNum * INTER_LAYER_DISTANCE,
+                                BASE_Y - yViewportOffset + it * INTRA_LAYER_DISTANCE
                             )
                         )
             })
@@ -77,11 +80,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         val blockRepository = BlockChainRepository.getInstance(Pair(context, resources))
         val frontierBlock = blockRepository.getRootBlock()
         val visitedCanvasBlockNodeByCryptoHash = HashMap<String, CanvasBlockNode>()
-        val stack = ArrayDeque<CanvasBlockNode.CanvasBlock>(
-            listOf(
-                canvasBlockByCryptoHash[frontierBlock.cryptoHash]
-            )
-        )
+        val stack = ArrayDeque<CanvasBlockNode.CanvasBlock>(listOf(canvasBlockByCryptoHash[frontierBlock.cryptoHash]))
 
         while (stack.isNotEmpty()) {
             val canvasRootBlock = stack.pop()
@@ -91,25 +90,24 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
                     canvasBlocksToVisit.add(canvasBlockByCryptoHash[parentHash]!!)
                 }
             }
-            if (canvasBlocksToVisit.isEmpty()) {
+            if (canvasBlocksToVisit.isNotEmpty()) {
+                stack.push(canvasRootBlock)
+                canvasBlocksToVisit.forEach({ stack.push(it) })
+            } else if (canvasRootBlock.signedBlock.cryptoHash !in visitedCanvasBlockNodeByCryptoHash) {
                 val rootNode =
                     CanvasBlockNode(
                         canvasRootBlock,
                         canvasRootBlock.signedBlock.unsignedBlock.parentHashes.map {
                             visitedCanvasBlockNodeByCryptoHash[it]!!
                         })
-                visitedCanvasBlockNodeByCryptoHash[canvasRootBlock.signedBlock.cryptoHash] =
-                        rootNode
+                visitedCanvasBlockNodeByCryptoHash[canvasRootBlock.signedBlock.cryptoHash] = rootNode
 
-                if (stack.isEmpty()) {
+                if (canvasRootBlock.signedBlock.cryptoHash == frontierBlock.cryptoHash) {
                     return rootNode
                 }
-            } else {
-                stack.push(canvasRootBlock)
-                canvasBlocksToVisit.forEach({ stack.push(it) })
             }
         }
-        throw RuntimeException("Cycle in blockchain found!")
+        throw RuntimeException("Malformed blockchain")
     }
 
     /**
@@ -118,11 +116,6 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
      */
     private fun updateFrontierCanvasBlockNode() {
         frontierCanvasBlockNode = canvasBlocksToCanvasBlockNodes(blocksToCanvasBlocks())
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        updateFrontierCanvasBlockNode()
-        drawGraph(canvas)
     }
 
     private fun drawGraph(canvas: Canvas) {
@@ -150,8 +143,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
     }
 
     private fun getDistance(src: Point, dest: Point): Double {
-        return Math.sqrt((src.x - dest.x).toDouble().pow(2) +
-                (src.y - dest.y).toDouble().pow(2))
+        return Math.sqrt((src.x - dest.x).toDouble().pow(2) + (src.y - dest.y).toDouble().pow(2))
     }
 
     private fun drawEdge(canvas: Canvas, src: Point, dest: Point) {
@@ -171,14 +163,10 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         val arrowXCoord = (src.x.toFloat() - dest.x) * ARROW_LENGTH / distance
         val arrowYCoord = (src.y.toFloat() - dest.y) * ARROW_LENGTH / distance
 
-        val positiveOffsetArrowXCoord =
-            positiveOffsetCos * arrowXCoord - positiveOffsetSin * arrowYCoord
-        val positiveOffsetArrowYCoord =
-            positiveOffsetSin * arrowXCoord + positiveOffsetCos * arrowYCoord
-        val negativeOffsetArrowXCoord =
-            negativeOffsetCos * arrowXCoord - negativeOffsetSin * arrowYCoord
-        val negativeOffsetArrowYCoord =
-            negativeOffsetSin * arrowXCoord + negativeOffsetCos * arrowYCoord
+        val positiveOffsetArrowXCoord = positiveOffsetCos * arrowXCoord - positiveOffsetSin * arrowYCoord
+        val positiveOffsetArrowYCoord = positiveOffsetSin * arrowXCoord + positiveOffsetCos * arrowYCoord
+        val negativeOffsetArrowXCoord = negativeOffsetCos * arrowXCoord - negativeOffsetSin * arrowYCoord
+        val negativeOffsetArrowYCoord = negativeOffsetSin * arrowXCoord + negativeOffsetCos * arrowYCoord
 
         leftArrowEdge.moveTo(xCoord.toFloat(), yCoord.toFloat())
         leftArrowEdge.lineTo(
@@ -198,5 +186,33 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) :
         canvas.drawPath(edge, paint)
         canvas.drawPath(leftArrowEdge, paint)
         canvas.drawPath(rightArrowEdge, paint)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        paint.reset()
+        edge.reset()
+        leftArrowEdge.reset()
+        rightArrowEdge.reset()
+        updateFrontierCanvasBlockNode()
+        drawGraph(canvas)
+    }
+
+    fun getCanvasBlock(xCoord: Int, yCoord: Int): SignedBlock? {
+        val visited = HashSet<String>()
+        val stack = ArrayDeque<CanvasBlockNode>(listOf(frontierCanvasBlockNode))
+        val clickedPoint = Point(xCoord, yCoord)
+        while (stack.isNotEmpty()) {
+            val current = stack.pop()
+            if (getDistance(current.canvasBlock.point, clickedPoint) <= NODE_RADIUS) {
+                return current.canvasBlock.signedBlock
+            }
+            for (parent in current.parents) {
+                if (parent.canvasBlock.signedBlock.cryptoHash !in visited) {
+                    visited.add(parent.canvasBlock.signedBlock.cryptoHash)
+                    stack.push(parent)
+                }
+            }
+        }
+        return null
     }
 }

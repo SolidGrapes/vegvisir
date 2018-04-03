@@ -67,8 +67,6 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
         val result = allDocsQuery.run()
         while (result.hasNext()) {
             val row = result.next()
-            Log.d("BlockDocumentId", row.documentId)
-            Log.d("BlockDocumentProperties", row.documentProperties.toString())
             signedBlockByCryptoHash[row.documentId] = SignedBlock.fromJson(row.documentProperties as Map<String, Any>)
         }
     }

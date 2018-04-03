@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<edu.cornell.em577.tamperprooflogging.presentation.BlockChainBrowserLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="edu.cornell.em577.tamperprooflogging.presentation.BlockChainBrowserActivity"
@@ -9,7 +9,7 @@
     <edu.cornell.em577.tamperprooflogging.presentation.BlockChainBrowserView
         android:id="@+id/blockChainBrowserView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent" />
 
     <Button
         android:id="@+id/addBlockButton"
@@ -28,4 +28,4 @@
         android:onClick="logoutButtonListener"/>
 
 
-</edu.cornell.em577.tamperprooflogging.presentation.BlockChainBrowserLayout>
+</FrameLayout>
