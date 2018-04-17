@@ -20,5 +20,6 @@
         <activity android:name=".presentation.BlockChainBrowserActivity"/>
         <activity android:name=".presentation.ViewBlockActivity"/>
         <activity android:name=".presentation.AddBlockActivity"/>
+        <activity android:name=".presentation.AddUserActivity"/>
     </application>
 </manifest>

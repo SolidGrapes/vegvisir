@@ -34,34 +34,44 @@ message GetRemoteBlocksResponse {
     optional bool failed_to_retrieve = 2;
 }
 
-message GetRemoteSignOffDataResponse {
-    optional string remote_user_id = 1;
-    optional int64 remote_timestamp = 2;
-    optional bool failed_to_retrieve = 3;
+message GetRemoteProofOfWitnessBlockResponse {
+    optional SignedBlock remote_proof_of_witness_block = 1;
+}
+
+message GetRemoteTimestampResponse {
+    optional int64 remote_timestamp = 1;
 }
 
 message GetRemoteBlocksRequest {
     repeated string crypto_hashes = 1;
 }
 
+message GetRemoteProofOfWitnessBlockRequest {
+    repeated string parent_hashes = 1;
+}
+
 message ProtocolMessage {
     enum MessageType {
         GET_REMOTE_ROOT_BLOCK_RESPONSE = 0;
         GET_REMOTE_BLOCKS_RESPONSE = 1;
-        GET_REMOTE_SIGN_OFF_DATA_RESPONSE = 2;
-        GET_REMOTE_ROOT_BLOCK_REQUEST = 3;
-        GET_REMOTE_BLOCKS_REQUEST = 4;
-        GET_REMOTE_SIGN_OFF_DATA_REQUEST = 5;
-        MERGE_COMPLETE = 6;
+        GET_REMOTE_PROOF_OF_WITNESS_BLOCK_RESPONSE = 2;
+        GET_REMOTE_TIMESTAMP_RESPONSE = 3;
+        GET_REMOTE_ROOT_BLOCK_REQUEST = 4;
+        GET_REMOTE_BLOCKS_REQUEST = 5;
+        GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST = 6;
+        GET_REMOTE_TIMESTAMP_REQUEST = 7;
+        MERGE_COMPLETE = 8;
     }
     required MessageType type = 1;
 
     oneof body {
         GetRemoteRootBlockResponse get_remote_root_block_response = 2;
         GetRemoteBlocksResponse get_remote_blocks_response = 3;
-        GetRemoteSignOffDataResponse get_remote_sign_off_data_response = 4;
-        GetRemoteBlocksRequest get_remote_blocks_request = 5;
-        bool no_body = 6;
+        GetRemoteProofOfWitnessBlockResponse get_remote_proof_of_witness_block_response = 4;
+        GetRemoteTimestampResponse get_remote_timestamp_response = 5;
+        GetRemoteBlocksRequest get_remote_blocks_request = 6;
+        GetRemoteProofOfWitnessBlockRequest get_remote_proof_of_witness_block_request = 7;
+        bool no_body = 8;
     }
 }
 

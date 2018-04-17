@@ -1,11 +1,11 @@
 package edu.cornell.em577.tamperprooflogging.data.model
 
-import android.content.res.Resources
 import android.util.Base64
-import android.util.Log
 import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
+import java.security.PrivateKey
 import java.security.Signature
+import java.util.*
 
 /**
  * Unsigned bundled set of transactions together with the requester's metadata and the parent
@@ -18,7 +18,6 @@ data class UnsignedBlock(
     val parentHashes: List<String>,
     val transactions: List<Transaction>
 ) {
-
     companion object {
         private const val USER_ID = "userId"
         private const val TIMESTAMP = "timestamp"
@@ -45,14 +44,62 @@ data class UnsignedBlock(
             )
         }
 
-        fun generateSignOff(
-            userId: String,
-            timestamp: Long,
-            parentHashes: List<String>,
-            resources: Resources
+        fun generateAdminCertificate(userRepo: UserDataRepository): UnsignedBlock {
+            val (adminId, adminLocation) = userRepo.loadAdminMetaData()
+            val hexPublicKey = userRepo.loadAdminHexPublicKey()
+            return UnsignedBlock(
+                adminId,
+                Calendar.getInstance().timeInMillis,
+                adminLocation,
+                listOf(),
+                listOf(Transaction.generateCertificate(adminId, hexPublicKey))
+            )
+        }
+
+        fun generateUserCertificate(
+            userRepo: UserDataRepository,
+            parentHashes: List<String>
         ): UnsignedBlock {
-            val location = UserDataRepository.getInstance(resources).getUser(userId).location
-            return UnsignedBlock(userId, timestamp, location, parentHashes, listOf(Transaction.generateSignOff(userId)))
+            val (adminId, adminLocation) = userRepo.loadAdminMetaData()
+            val (userId, _) = userRepo.loadUserMetaData()
+            val hexPublicKey = userRepo.loadUserHexPublicKey()
+            return UnsignedBlock(
+                adminId,
+                Calendar.getInstance().timeInMillis,
+                adminLocation,
+                parentHashes,
+                listOf(Transaction.generateCertificate(userId, hexPublicKey))
+            )
+        }
+
+        fun generateRevocation(
+            userIdToRevoke: String,
+            userRepo: UserDataRepository,
+            parentHashes: List<String>
+        ): UnsignedBlock {
+            val (adminId, adminLocation) = userRepo.loadAdminMetaData()
+            return UnsignedBlock(
+                adminId,
+                Calendar.getInstance().timeInMillis,
+                adminLocation,
+                parentHashes,
+                listOf(Transaction.generateRevocation(userIdToRevoke))
+            )
+        }
+
+        fun generateProofOfWitness(
+            userRepo: UserDataRepository,
+            parentHashes: List<String>,
+            localTimestamp: Long
+        ): UnsignedBlock {
+            val (userId, userLocation) = userRepo.loadUserMetaData()
+            return UnsignedBlock(
+                userId,
+                localTimestamp,
+                userLocation,
+                parentHashes,
+                listOf(Transaction.generateProofOfWitness(userId))
+            )
         }
     }
 
@@ -76,9 +123,9 @@ data class UnsignedBlock(
         return properties
     }
 
-    fun sign(resources: Resources): String {
+    fun sign(privateKey: PrivateKey): String {
         val sig = Signature.getInstance("SHA256withRSA")
-        sig.initSign(UserDataRepository.getInstance(resources).getUser(userId).userPrivateKey)
+        sig.initSign(privateKey)
         sig.update(userId.toByteArray())
         sig.update(timestamp.toString().toByteArray())
         sig.update(location.toByteArray())

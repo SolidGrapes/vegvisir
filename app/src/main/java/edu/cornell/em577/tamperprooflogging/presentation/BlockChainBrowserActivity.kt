@@ -6,22 +6,19 @@ import android.os.Bundle
 import android.support.v4.content.ContextCompat.startActivity
 import android.support.v4.view.GestureDetectorCompat
 import android.support.v7.app.AppCompatActivity
-import android.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import edu.cornell.em577.tamperprooflogging.R
+import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
+import edu.cornell.em577.tamperprooflogging.protocol.EstablishRemoteExchangeProtocol
 
 class BlockChainBrowserActivity : AppCompatActivity() {
 
-    companion object {
-        private const val GENESIS = "Genesis"
-    }
-
     private var detector: GestureDetectorCompat? = null
-
     var browserView: BlockChainBrowserView? = null
+    var userPassword: String? = null
 
     class BlockChainBrowserGestureListener(
         private val context: Context,
@@ -55,6 +52,11 @@ class BlockChainBrowserActivity : AppCompatActivity() {
         detector = GestureDetectorCompat(
             this, BlockChainBrowserGestureListener(applicationContext, savedInstanceState,this)
         )
+        userPassword = intent.getStringExtra("UserPassword")
+//        val userRepo = UserDataRepository.getInstance(Pair(applicationContext, resources))
+//        val blockRepo = BlockRepository.getInstance(Pair(applicationContext, resources))
+//
+//        EstablishRemoteExchangeProtocol.getInstance(Triple(blockRepo,userRepo, userPassword!!)).execute()
     }
 
     override fun onTouchEvent(event: MotionEvent?): Boolean {
@@ -64,12 +66,11 @@ class BlockChainBrowserActivity : AppCompatActivity() {
 
     fun addBlockButtonListener(view: View) {
         val intent = Intent(this, AddBlockActivity::class.java)
+        intent.putExtra("UserPassword", userPassword!!)
         startActivity(intent)
     }
 
     fun logoutButtonListener(view: View) {
-        val userRepository = UserDataRepository.getInstance(resources)
-        userRepository.setCurrentUser(userRepository.getUser(GENESIS))
         finish()
     }
 }

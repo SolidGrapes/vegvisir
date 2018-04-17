@@ -2,9 +2,7 @@ package edu.cornell.em577.tamperprooflogging.data.source
 
 import android.content.Context
 import android.content.res.Resources
-import android.util.Log
 import com.couchbase.lite.Manager
-import com.couchbase.lite.QueryOptions
 import com.couchbase.lite.android.AndroidContext
 import edu.cornell.em577.tamperprooflogging.data.exception.SignedBlockNotFoundException
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
@@ -16,17 +14,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 
 /** Repository interfacing with the storage layer to store/retrieve blocks on the blockchain */
-class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
+class BlockRepository private constructor(env: Pair<Context, Resources>) {
 
     companion object :
-        SingletonHolder<BlockChainRepository, Pair<Context, Resources>>(::BlockChainRepository) {
+        SingletonHolder<BlockRepository, Pair<Context, Resources>>(::BlockRepository) {
         private const val ROOT = "Root"
-        private const val GENESIS = "Genesis"
-        private const val EDWIN_MA = "Edwin_Ma"
-        private const val WEITAO_JIANG = "Weitao_Jiang"
-        private const val KOLBEINN_KARLSSON = "Kolbeinn_Karlsson"
-        private const val ROBBERT_VAN_RENESSE = "Robbert_Van_Renesse"
-        private const val ORIGIN = "Origin"
     }
 
     // Persistent block store
@@ -38,37 +30,32 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
 
     private val isUpdating = AtomicBoolean(false)
 
-    private val applicationResources = env.second
+    private val userRepo = UserDataRepository.getInstance(Pair(env.first, env.second))
 
     init {
-        val rootDocument = blockstore.getDocument(ROOT)
-        if (rootDocument.properties == null) {
-            val genesisUnsigned = UnsignedBlock(
-                GENESIS, 0L, ORIGIN, emptyList(), listOf(
-                    Transaction.generateCertificate(
-                        EDWIN_MA, applicationResources
-                    ), Transaction.generateCertificate(
-                        WEITAO_JIANG, applicationResources
-                    ), Transaction.generateCertificate(
-                        KOLBEINN_KARLSSON, applicationResources
-                    ), Transaction.generateCertificate(
-                        ROBBERT_VAN_RENESSE, applicationResources
-                    )
-                )
-            )
-            val genesisSigned = SignedBlock(genesisUnsigned, genesisUnsigned.sign(applicationResources))
-            val genesisDocument = blockstore.getDocument(genesisSigned.cryptoHash)
-            genesisDocument.putProperties(genesisSigned.toJson())
-            rootDocument.putProperties(genesisSigned.toJson())
-        }
-
         val allDocsQuery = blockstore.createAllDocumentsQuery()
         allDocsQuery.setPrefetch(true)
         val result = allDocsQuery.run()
         while (result.hasNext()) {
             val row = result.next()
-            signedBlockByCryptoHash[row.documentId] = SignedBlock.fromJson(row.documentProperties as Map<String, Any>)
+            signedBlockByCryptoHash[row.documentId] =
+                    SignedBlock.fromJson(row.documentProperties as Map<String, Any>)
         }
+    }
+
+    /** Bootstrap the block repository */
+    fun bootstrap(adminPassword: String) {
+        val genesisBlock = SignedBlock.generateAdminCertificate(userRepo, adminPassword)
+        val userCertBlock = SignedBlock.generateUserCertificate(
+            userRepo,
+            adminPassword,
+            listOf(genesisBlock.cryptoHash)
+        )
+        addBlock(genesisBlock)
+        addBlock(userCertBlock)
+        signedBlockByCryptoHash[ROOT] = userCertBlock
+        val rootDocument = blockstore.getDocument(ROOT)
+        rootDocument.putProperties(userCertBlock.toJson())
     }
 
     /** Check whether the repository contains a signed block with the given crypto hash */
@@ -82,34 +69,33 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
      * Generate a new signed root block with the specified transactions, and add it to the
      * repository. Return true if successful, false otherwise.
      */
-    fun addBlock(transactions: List<Transaction>): Boolean {
+    fun addBlock(transactions: List<Transaction>, password: String): Boolean {
         if (isUpdating.compareAndSet(false, true)) {
             synchronized(signedBlockByCryptoHash) {
-                val currentUser = UserDataRepository.getInstance(applicationResources).getCurrentUser()
+                val (userId, userLocation) = userRepo.loadUserMetaData()
                 val unsignedBlockToAdd = UnsignedBlock(
-                    currentUser.userId,
+                    userId,
                     Calendar.getInstance().timeInMillis,
-                    currentUser.location,
+                    userLocation,
                     listOf(signedBlockByCryptoHash[ROOT]!!.cryptoHash),
                     transactions
                 )
+                val privateKey = userRepo.loadUserPrivateKey(password)
                 val signedBlockToAdd =
-                    SignedBlock(unsignedBlockToAdd, unsignedBlockToAdd.sign(applicationResources))
-
-                signedBlockByCryptoHash[signedBlockToAdd.cryptoHash] = signedBlockToAdd
-                val document = blockstore.getDocument(signedBlockToAdd.cryptoHash)
-                document.putProperties(signedBlockToAdd.toJson())
-
-                signedBlockByCryptoHash[ROOT] = signedBlockToAdd
-                val rootDocument = blockstore.getDocument(ROOT)
-                val properties = HashMap(rootDocument.properties)
-                properties.putAll(signedBlockToAdd.toJson())
-                rootDocument.putProperties(properties)
+                    SignedBlock(unsignedBlockToAdd, unsignedBlockToAdd.sign(privateKey))
+                addBlock(signedBlockToAdd)
+                updateRootBlock(signedBlockToAdd)
             }
             isUpdating.set(false)
             return true
         }
         return false
+    }
+
+    private fun addBlock(block: SignedBlock) {
+        signedBlockByCryptoHash[block.cryptoHash] = block
+        val document = blockstore.getDocument(block.cryptoHash)
+        document.putProperties(block.toJson())
     }
 
     /** Indicate to the repository that a remote data exchange is ongoing */
@@ -130,12 +116,7 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
                 val document = blockstore.getDocument(it.cryptoHash)
                 document.putProperties(it.toJson())
             })
-
-            signedBlockByCryptoHash[ROOT] = rootSignedBlock
-            val rootDocument = blockstore.getDocument(ROOT)
-            val properties = HashMap(rootDocument.properties)
-            properties.putAll(rootSignedBlock.toJson())
-            rootDocument.putProperties(properties)
+            updateRootBlock(rootSignedBlock)
         }
     }
 
@@ -156,6 +137,15 @@ class BlockChainRepository private constructor(env: Pair<Context, Resources>) {
                 )
             })
         }
+    }
+
+    /** Update the signed root block in the repository */
+    private fun updateRootBlock(signedRootBlock: SignedBlock) {
+        signedBlockByCryptoHash[ROOT] = signedRootBlock
+        val rootDocument = blockstore.getDocument(ROOT)
+        val properties = HashMap(rootDocument.properties)
+        properties.putAll(signedRootBlock.toJson())
+        rootDocument.putProperties(properties)
     }
 
     /**

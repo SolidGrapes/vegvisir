@@ -2,6 +2,7 @@ package edu.cornell.em577.tamperprooflogging.presentation
 
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
+import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -9,12 +10,13 @@ import android.widget.ListView
 import android.widget.TextView
 import edu.cornell.em577.tamperprooflogging.R
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
-import edu.cornell.em577.tamperprooflogging.data.source.BlockChainRepository
+import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 
 class AddBlockActivity : AppCompatActivity() {
 
     private val transactionList = ArrayList<Pair<String, String>>()
     private var transactionAdapter: ArrayAdapter<Pair<String, String>>? = null
+    var userPassword: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,10 +27,11 @@ class AddBlockActivity : AppCompatActivity() {
             transactionList)
         val listView = findViewById<ListView>(R.id.transactionList)
         listView.adapter = transactionAdapter
+        userPassword = intent.getStringExtra("UserPassword")
     }
 
     fun createBlockButtonListener(view: View) {
-        val blockRepository = BlockChainRepository.getInstance(Pair(applicationContext, resources))
+        val blockRepository = BlockRepository.getInstance(Pair(applicationContext, resources))
         val transactionsToAdd = transactionList.map {
             Transaction(
                 Transaction.TransactionType.RECORD_ACCESS,
@@ -36,7 +39,7 @@ class AddBlockActivity : AppCompatActivity() {
                 it.second
             )
         }
-        if (blockRepository.addBlock(transactionsToAdd)) {
+        if (blockRepository.addBlock(transactionsToAdd, userPassword!!)) {
             finish()
         } else {
             val mergeInProgressTextView = findViewById<TextView>(R.id.mergeInProgress)

@@ -1,8 +1,8 @@
 package edu.cornell.em577.tamperprooflogging.data.model
 
-import android.content.res.Resources
 import android.util.Base64
 import com.vegvisir.data.ProtocolMessageProto
+import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 import java.security.MessageDigest
 
 /**
@@ -41,12 +41,44 @@ data class SignedBlock(
             return SignedBlock(UnsignedBlock.fromJson(properties), properties[SIGNATURE] as String)
         }
 
-        fun generateSignOff(userId: String,
-                            timestamp: Long,
-                            parentHashes: List<String>,
-                            resources: Resources): SignedBlock {
-            val signOff = UnsignedBlock.generateSignOff(userId, timestamp, parentHashes, resources)
-            return SignedBlock(signOff, signOff.sign(resources))
+        fun generateAdminCertificate(userRepo: UserDataRepository, password: String): SignedBlock {
+            val adminCertificate = UnsignedBlock.generateAdminCertificate(userRepo)
+            val privateKey = userRepo.loadAdminPrivateKey(password)
+            return SignedBlock(adminCertificate, adminCertificate.sign(privateKey))
+        }
+
+        fun generateUserCertificate(
+            userRepo: UserDataRepository,
+            password: String,
+            parentHashes: List<String>
+        ): SignedBlock {
+            val userCertificate = UnsignedBlock.generateUserCertificate(userRepo, parentHashes)
+            val privateKey = userRepo.loadAdminPrivateKey(password)
+            return SignedBlock(userCertificate, userCertificate.sign(privateKey))
+        }
+
+        fun generateUserRevocation(
+            userIdToRevoke: String,
+            userRepo: UserDataRepository,
+            password: String,
+            parentHashes: List<String>
+        ): SignedBlock {
+            val userRevocation =
+                UnsignedBlock.generateRevocation(userIdToRevoke, userRepo, parentHashes)
+            val privateKey = userRepo.loadAdminPrivateKey(password)
+            return SignedBlock(userRevocation, userRevocation.sign(privateKey))
+        }
+
+        fun generateProofOfWitness(
+            userRepo: UserDataRepository,
+            password: String,
+            parentHashes: List<String>,
+            localTimestamp: Long
+        ): SignedBlock {
+            val proofOfWitness = UnsignedBlock.generateProofOfWitness(
+                userRepo, parentHashes, localTimestamp)
+            val privateKey = userRepo.loadUserPrivateKey(password)
+            return SignedBlock(proofOfWitness, proofOfWitness.sign(privateKey))
         }
     }
 

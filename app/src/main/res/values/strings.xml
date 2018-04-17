@@ -2,13 +2,16 @@
     <string name="app_name">Vegvisir</string>
     <string name="logout">Logout</string>
     <string name="login">Login</string>
+    <string name="add_user">Add User</string>
+    <string name="enter_user_identifier">Enter User Identifier</string>
+    <string name="enter_user_location">Enter User Location</string>
+    <string name="enter_user_password">Enter User Password</string>
     <string name="add_block">Add Block</string>
     <string name="add_transaction">Add Transaction</string>
     <string name="create_block">Create Block</string>
     <string name="enter_content">Enter Content</string>
     <string name="enter_comment">Enter Comment</string>
     <string name="merge_in_progress">Merge In Progress</string>
-    <string name="enter_username">Enter Username</string>
     <string name="enter_password">Enter Password</string>
     <string name="incorrect_credentials">Incorrect Credentials</string>
 

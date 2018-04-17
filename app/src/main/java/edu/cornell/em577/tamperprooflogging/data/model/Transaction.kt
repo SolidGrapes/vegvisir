@@ -1,8 +1,6 @@
 package edu.cornell.em577.tamperprooflogging.data.model
 
-import android.content.res.Resources
 import com.vegvisir.data.ProtocolMessageProto
-import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 
 /** Core data in a block */
 data class Transaction(
@@ -13,7 +11,8 @@ data class Transaction(
     enum class TransactionType {
         CERTIFICATE,
         RECORD_ACCESS,
-        SIGN_OFF
+        PROOF_OF_WITNESS,
+        REVOKE_CERTIFICATE
     }
 
     companion object {
@@ -37,21 +36,23 @@ data class Transaction(
             )
         }
 
-        fun generateCertificate(userId: String, resources: Resources): Transaction {
-            val userPublicKey =
-                UserDataRepository.getInstance(resources).getUser(userId).userPublicKey
+        fun generateCertificate(userId: String, hexPublicKey: String): Transaction {
+            return Transaction(TransactionType.CERTIFICATE, userId, hexPublicKey)
+        }
+
+        fun generateRevocation(userIdToRevoke: String): Transaction {
             return Transaction(
-                TransactionType.CERTIFICATE,
-                "$userId : $userPublicKey",
-                "Public key certificate for $userId"
+                TransactionType.REVOKE_CERTIFICATE,
+                userIdToRevoke,
+                "Revoking user membership"
             )
         }
 
-        fun generateSignOff(userId: String): Transaction {
+        fun generateProofOfWitness(userId: String): Transaction {
             return Transaction(
-                TransactionType.SIGN_OFF,
-                "Signing Off",
-                "$userId has signed off on all predecessor transactions"
+                TransactionType.PROOF_OF_WITNESS,
+                userId,
+                "Signing off on all predecessor transactions"
             )
         }
     }

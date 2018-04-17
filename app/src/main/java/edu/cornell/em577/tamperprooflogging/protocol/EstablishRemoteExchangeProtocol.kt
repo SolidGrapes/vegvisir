@@ -3,7 +3,7 @@ package edu.cornell.em577.tamperprooflogging.protocol
 import android.content.Context
 import android.content.res.Resources
 import com.vegvisir.data.ProtocolMessageProto
-import edu.cornell.em577.tamperprooflogging.data.source.BlockChainRepository
+import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 import edu.cornell.em577.tamperprooflogging.protocol.exception.BadMessageException
 import edu.cornell.em577.tamperprooflogging.protocol.exception.UnexpectedTerminationException
@@ -13,17 +13,17 @@ import kotlinx.coroutines.experimental.async
 import java.util.*
 
 /**
- * Protocol for establishing a connection with a remote endpoint. There is only one instance of this protocol
- * executing at any given time.
+ * Protocol for establishing a connection with a remote endpoint.
+ * There is only one instance of this protocol executing at any given time.
  */
-class EstablishRemoteExchangeProtocol private constructor(env: Pair<Context, Resources>) {
+class EstablishRemoteExchangeProtocol private constructor(env: Triple<BlockRepository, UserDataRepository, String>) {
 
     companion object :
-        SingletonHolder<EstablishRemoteExchangeProtocol, Pair<Context, Resources>>(::EstablishRemoteExchangeProtocol)
+        SingletonHolder<EstablishRemoteExchangeProtocol, Triple<BlockRepository, UserDataRepository, String>>(::EstablishRemoteExchangeProtocol)
 
-    private val applicationContext = env.first
-    private val applicationResources = env.second
-
+    private val blockRepo = env.first
+    private val userRepo = env.second
+    private val userPassword = env.third
     private var isRunning = false
 
     @Synchronized
@@ -33,24 +33,21 @@ class EstablishRemoteExchangeProtocol private constructor(env: Pair<Context, Res
         }
         isRunning = true
         async(CommonPool) {
-            val blockRepository = BlockChainRepository.getInstance(Pair(applicationContext, applicationResources))
             // Initialize networking module
 
             while (true) {
                 // Listen for connections as well as actively seek out nearby connections periodically
 
-                val localUserId = UserDataRepository.getInstance(applicationResources)
-                    .getCurrentUser().userId
+                blockRepo.beginExchange()
                 val localTimestamp = Calendar.getInstance().timeInMillis
-                blockRepository.beginExchange()
 
                 // Pass in (outgoing) connection object. Ensure that outgoing connection object is thread-safe!
                 // Make sure that connection objects catch network exception and rethrow to
                 // UnexpectedTerminationException. Make sure that connection objects send and receive byte arrays.
                 val serviceRPCProtocol = ServiceRPCProtocol(
-                    applicationContext,
-                    applicationResources,
-                    localUserId,
+                    blockRepo,
+                    userRepo,
+                    userPassword,
                     localTimestamp)
                 val serviceResult = serviceRPCProtocol.execute()
 
@@ -58,9 +55,9 @@ class EstablishRemoteExchangeProtocol private constructor(env: Pair<Context, Res
                 // Make sure that connection objects catch network exception and rethrow to
                 // UnexpectedTerminationException. Make sure that connection objects send and receive byte arrays.
                 val mergeRemoteBlockChainProtocol = MergeRemoteBlockChainProtocol(
-                    applicationContext,
-                    applicationResources,
-                    localUserId,
+                    blockRepo,
+                    userRepo,
+                    userPassword,
                     localTimestamp)
                 val mergeResult = mergeRemoteBlockChainProtocol.execute()
 
@@ -72,11 +69,13 @@ class EstablishRemoteExchangeProtocol private constructor(env: Pair<Context, Res
                         when (parsedMessage.type) {
                             ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_REQUEST,
                             ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_REQUEST,
-                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_SIGN_OFF_DATA_REQUEST ->
+                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST ,
+                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_REQUEST->
                                 serviceRPCProtocol.requestChannel.send(parsedMessage)
                             ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_RESPONSE,
                             ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_RESPONSE,
-                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_SIGN_OFF_DATA_RESPONSE->
+                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_RESPONSE,
+                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_RESPONSE->
                                 mergeRemoteBlockChainProtocol.responseChannel.send(parsedMessage)
                             ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE ->
                                 serviceRPCProtocol.requestChannel.send(null)
@@ -93,7 +92,7 @@ class EstablishRemoteExchangeProtocol private constructor(env: Pair<Context, Res
                 }
                 mergeResult.await()
                 serviceResult.await()
-                blockRepository.endExchange()
+                blockRepo.endExchange()
                 // Free (incoming/outgoing) connection object
             }
         }

@@ -7,12 +7,9 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Point
 import android.util.AttributeSet
-import android.util.Log
-import android.view.DragEvent
-import android.view.GestureDetector
 import android.view.View
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
-import edu.cornell.em577.tamperprooflogging.data.source.BlockChainRepository
+import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import java.util.*
 import kotlin.math.pow
 
@@ -47,7 +44,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) : View
 
     /** Maps blocks in the repository to canvas blocks */
     private fun blocksToCanvasBlocks(): HashMap<String, CanvasBlockNode.CanvasBlock> {
-        val blockRepository = BlockChainRepository.getInstance(Pair(context, resources))
+        val blockRepository = BlockRepository.getInstance(Pair(context, resources))
         val rootBlock = blockRepository.getRootBlock()
         val canvasBlockByCryptoHash = HashMap<String, CanvasBlockNode.CanvasBlock>()
         var currentLayer = listOf(rootBlock)
@@ -77,7 +74,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) : View
     private fun canvasBlocksToCanvasBlockNodes(
         canvasBlockByCryptoHash: HashMap<String, CanvasBlockNode.CanvasBlock>
     ): CanvasBlockNode {
-        val blockRepository = BlockChainRepository.getInstance(Pair(context, resources))
+        val blockRepository = BlockRepository.getInstance(Pair(context, resources))
         val frontierBlock = blockRepository.getRootBlock()
         val visitedCanvasBlockNodeByCryptoHash = HashMap<String, CanvasBlockNode>()
         val stack = ArrayDeque<CanvasBlockNode.CanvasBlock>(listOf(canvasBlockByCryptoHash[frontierBlock.cryptoHash]))
