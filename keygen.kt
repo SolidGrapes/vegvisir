@@ -36,7 +36,7 @@ fun main(args: Array<String>) {
     hashedPassFile.write(digest.digest())
     hashedPassFile.close()
 
-    val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+    val factory = SecretKeyFactory.getInstance("PBKDF2withHmacSHA1")
     val spec = PBEKeySpec(password.toCharArray(), salt, ITERATION_COUNT, KEY_LEN)
     val secret = SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
 
@@ -63,4 +63,5 @@ fun main(args: Array<String>) {
     val cipherText = cipher.doFinal(pkcs8EncodedKeySpec.encoded)
     certAuthEncPrivateKeyFile.write(cipherText)
     certAuthEncPrivateKeyFile.close()
+
 }

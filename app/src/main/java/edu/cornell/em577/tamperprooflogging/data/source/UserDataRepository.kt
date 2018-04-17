@@ -41,7 +41,7 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         private const val USER_SYM_KEY_IV = "userSymKeyIv"
         private const val ENC_USER_PRIVATE_KEY = "encUserPrivateKey"
         private const val SIG_KEYGEN_ALGO = "RSA"
-        private const val ENC_KEYGEN_ALGO = "PBKDF2WithHmacSHA256"
+        private const val ENC_KEYGEN_ALGO = "PBKDF2withHmacSHA1"
         private const val ENC_ALGO = "AES/CBC/PKCS5Padding"
         private const val BASE_ENC_ALGO = "AES"
         private const val SALT_LEN = 8
