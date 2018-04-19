@@ -102,6 +102,12 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
 
     fun authenticateUser(password: String): Boolean {
         val properties = userstore.getDocument(USER).properties
+        val userId = properties[USER_ID] as String
+        synchronized(userGroup) {
+            if (!userGroup.lookup(userId)) {
+                return false
+            }
+        }
         val salt = (properties[USER_SALT] as String).hexStringToByteArray()
         val hashedPass = (properties[USER_HASHED_PASS] as String).hexStringToByteArray()
         val digest = MessageDigest.getInstance("SHA-256")
@@ -214,26 +220,40 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         return IOUtils.toByteArray(applicationResources.openRawResource(id))
     }
 
-    fun addUserCertificate(userId: String, publicKey: PublicKey) {
-        userGroup.add(userId)
-        publicKeyByUserId[userId] = publicKey
-    }
-
-    fun removeUserCertificate(userId: String) {
-        userGroup.remove(userId)
-    }
-
-    fun getAllUserCertificates(): List<Pair<String, PublicKey>> {
-        return userGroup.toList().map { Pair(it, publicKeyByUserId[it]!!) }
-    }
-
-    fun getUserCertificate(userId: String): PublicKey? {
-        return publicKeyByUserId[userId]
-    }
-
     fun getPublicKeyFromHexString(hexPublicKey: String): PublicKey {
         val x509EncodedKeySpec = X509EncodedKeySpec(hexPublicKey.hexStringToByteArray())
         val keyFactory = KeyFactory.getInstance(UserDataRepository.SIG_KEYGEN_ALGO)
         return keyFactory.generatePublic(x509EncodedKeySpec)
+    }
+
+    fun addUserCertificate(userId: String, publicKey: PublicKey) {
+        synchronized(userGroup) {
+            userGroup.add(userId)
+            publicKeyByUserId[userId] = publicKey
+        }
+    }
+
+    fun removeUserCertificate(userId: String) {
+        synchronized(userGroup) {
+            userGroup.remove(userId)
+        }
+    }
+
+    fun getAllUserCertificates(): List<Pair<String, PublicKey>> {
+        synchronized(userGroup) {
+            return userGroup.toList().sorted().map { Pair(it, publicKeyByUserId[it]!!) }
+        }
+    }
+
+    fun isActiveUser(userId: String): Boolean {
+        synchronized(userGroup) {
+            return userGroup.lookup(userId)
+        }
+    }
+
+    fun getUserCertificate(userId: String): PublicKey? {
+        synchronized(userGroup) {
+            return publicKeyByUserId[userId]
+        }
     }
 }

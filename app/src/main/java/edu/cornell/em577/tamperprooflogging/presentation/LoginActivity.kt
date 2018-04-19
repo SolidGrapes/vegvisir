@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.EditText
 import android.widget.TextView
 import edu.cornell.em577.tamperprooflogging.R
+import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 
 class LoginActivity : AppCompatActivity() {
@@ -19,20 +20,19 @@ class LoginActivity : AppCompatActivity() {
         val passwordEditText = findViewById<EditText>(R.id.enterPassword)
         val password = passwordEditText.text.toString()
         val userRepo = UserDataRepository.getInstance(Pair(applicationContext, resources))
+        BlockRepository.getInstance(Pair(applicationContext, resources))
         if (userRepo.authenticateAdmin(password)) {
             if (userRepo.inRegistration()) {
                 val intent = Intent(this, AddUserActivity::class.java)
                 intent.putExtra("AdminPassword", password)
                 startActivity(intent)
             } else {
-
-                // Temporary until revocation is implemented
-                val incorrectCredentialsTextView = findViewById<TextView>(R.id.incorrectCredentials)
-                incorrectCredentialsTextView.visibility = View.VISIBLE
-
+                val intent = Intent(this, RevokeUserActivity::class.java)
+                intent.putExtra("AdminPassword", password)
+                startActivity(intent)
             }
         } else if (!userRepo.inRegistration() && userRepo.authenticateUser(password)) {
-            val intent = Intent(this, BlockChainBrowserActivity::class.java)
+            val intent = Intent(this, UserPanelActivity::class.java)
             intent.putExtra("UserPassword", password)
             startActivity(intent)
         } else {

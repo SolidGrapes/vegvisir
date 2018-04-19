@@ -72,21 +72,6 @@ data class UnsignedBlock(
             )
         }
 
-        fun generateRevocation(
-            userIdToRevoke: String,
-            userRepo: UserDataRepository,
-            parentHashes: List<String>
-        ): UnsignedBlock {
-            val (adminId, adminLocation) = userRepo.loadAdminMetaData()
-            return UnsignedBlock(
-                adminId,
-                Calendar.getInstance().timeInMillis,
-                adminLocation,
-                parentHashes,
-                listOf(Transaction.generateRevocation(userIdToRevoke))
-            )
-        }
-
         fun generateProofOfWitness(
             userRepo: UserDataRepository,
             parentHashes: List<String>,

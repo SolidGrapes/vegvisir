@@ -6,12 +6,16 @@
     <string name="enter_user_identifier">Enter User Identifier</string>
     <string name="enter_user_location">Enter User Location</string>
     <string name="enter_user_password">Enter User Password</string>
+    <string name="revoke_user">Revoke User</string>
     <string name="add_block">Add Block</string>
     <string name="add_transaction">Add Transaction</string>
     <string name="create_block">Create Block</string>
     <string name="enter_content">Enter Content</string>
     <string name="enter_comment">Enter Comment</string>
     <string name="merge_in_progress">Merge In Progress</string>
+    <string name="user_is_not_active">User Is Not Active</string>
+    <string name="successfully_added_block">Successfully Add Block</string>
+    <string name="successfully_revoked_user_certificate">Successfully Revoked User Certificate</string>
     <string name="enter_password">Enter Password</string>
     <string name="incorrect_credentials">Incorrect Credentials</string>
 
@@ -22,4 +26,9 @@
     <string name="signature">Signature:</string>
     <string name="transactions">Transactions:</string>
     <string name="crypto_hash">Cryptographic Hash:</string>
+
+    <string name="view_blockchain">View Blockchain</string>
+    <string name="view_record_accesses">View Record Accesses</string>
+    <string name="view_user_certificates">View User Certificates</string>
+
 </resources>

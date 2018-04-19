@@ -57,18 +57,6 @@ data class SignedBlock(
             return SignedBlock(userCertificate, userCertificate.sign(privateKey))
         }
 
-        fun generateUserRevocation(
-            userIdToRevoke: String,
-            userRepo: UserDataRepository,
-            password: String,
-            parentHashes: List<String>
-        ): SignedBlock {
-            val userRevocation =
-                UnsignedBlock.generateRevocation(userIdToRevoke, userRepo, parentHashes)
-            val privateKey = userRepo.loadAdminPrivateKey(password)
-            return SignedBlock(userRevocation, userRevocation.sign(privateKey))
-        }
-
         fun generateProofOfWitness(
             userRepo: UserDataRepository,
             password: String,

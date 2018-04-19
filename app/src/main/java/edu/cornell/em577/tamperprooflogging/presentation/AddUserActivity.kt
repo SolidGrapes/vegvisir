@@ -10,7 +10,7 @@ import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 
 class AddUserActivity : AppCompatActivity() {
 
-    var adminPassword: String? = null
+    private var adminPassword: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

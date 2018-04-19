@@ -10,22 +10,4 @@
         android:id="@+id/blockChainBrowserView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-
-    <Button
-        android:id="@+id/addBlockButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/add_block"
-        android:layout_gravity="bottom|end"
-        android:onClick="addBlockButtonListener"/>
-
-    <Button
-        android:id="@+id/logout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/logout"
-        android:layout_gravity="bottom|start"
-        android:onClick="logoutButtonListener"/>
-
-
 </FrameLayout>

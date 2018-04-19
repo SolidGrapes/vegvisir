@@ -1,8 +1,8 @@
 package edu.cornell.em577.tamperprooflogging.presentation
 
+import android.graphics.Color
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
-import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -11,6 +11,7 @@ import android.widget.TextView
 import edu.cornell.em577.tamperprooflogging.R
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
+import org.jetbrains.anko.textColor
 
 class AddBlockActivity : AppCompatActivity() {
 
@@ -31,7 +32,7 @@ class AddBlockActivity : AppCompatActivity() {
     }
 
     fun createBlockButtonListener(view: View) {
-        val blockRepository = BlockRepository.getInstance(Pair(applicationContext, resources))
+        val blockRepo = BlockRepository.getInstance(Pair(applicationContext, resources))
         val transactionsToAdd = transactionList.map {
             Transaction(
                 Transaction.TransactionType.RECORD_ACCESS,
@@ -39,11 +40,14 @@ class AddBlockActivity : AppCompatActivity() {
                 it.second
             )
         }
-        if (blockRepository.addBlock(transactionsToAdd, userPassword!!)) {
-            finish()
+        val addBlockResultTextView = findViewById<TextView>(R.id.addBlockResult)
+        addBlockResultTextView.visibility = View.VISIBLE
+        if (blockRepo.addUserBlock(transactionsToAdd, userPassword!!)) {
+            addBlockResultTextView.text = resources.getText(R.string.successfully_added_block)
+            addBlockResultTextView.textColor = Color.GREEN
         } else {
-            val mergeInProgressTextView = findViewById<TextView>(R.id.mergeInProgress)
-            mergeInProgressTextView.visibility = View.VISIBLE
+            addBlockResultTextView.text = resources.getText(R.string.merge_in_progress)
+            addBlockResultTextView.textColor = Color.RED
         }
     }
 

@@ -2,6 +2,7 @@ package edu.cornell.em577.tamperprooflogging.data.source
 
 import android.content.Context
 import android.content.res.Resources
+import android.util.Log
 import com.couchbase.lite.Manager
 import com.couchbase.lite.android.AndroidContext
 import edu.cornell.em577.tamperprooflogging.data.exception.SignedBlockNotFoundException
@@ -9,9 +10,6 @@ import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.data.model.UnsignedBlock
 import edu.cornell.em577.tamperprooflogging.util.SingletonHolder
-import edu.cornell.em577.tamperprooflogging.util.hexStringToByteArray
-import java.security.KeyFactory
-import java.security.spec.X509EncodedKeySpec
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -32,9 +30,7 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     private val signedBlockByCryptoHash: HashMap<String, SignedBlock> = HashMap()
 
     private val isUpdating = AtomicBoolean(false)
-
     private val userRepo = UserDataRepository.getInstance(Pair(env.first, env.second))
-
     private val recordRepo = RecordRepository.getInstance(Pair(env.first, env.second))
 
     init {
@@ -46,7 +42,7 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
             signedBlockByCryptoHash[row.documentId] =
                     SignedBlock.fromJson(row.documentProperties as Map<String, Any>)
         }
-        if (!userRepo.inRegistration()) {
+        if (signedBlockByCryptoHash[ROOT] != null) {
             populateRepos()
         }
     }
@@ -102,10 +98,10 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     }
 
     /**
-     * Generate a new signed root block with the specified transactions, and add it to the
+     * Generate a new signed user root block with the specified transactions, and add it to the
      * repository. Return true if successful, false otherwise.
      */
-    fun addBlock(transactions: List<Transaction>, password: String): Boolean {
+    fun addUserBlock(transactions: List<Transaction>, password: String): Boolean {
         if (isUpdating.compareAndSet(false, true)) {
             val (userId, userLocation) = userRepo.loadUserMetaData()
             val unsignedBlockToAdd = UnsignedBlock(
@@ -116,6 +112,32 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
                 transactions
             )
             val privateKey = userRepo.loadUserPrivateKey(password)
+            val signedBlockToAdd =
+                SignedBlock(unsignedBlockToAdd, unsignedBlockToAdd.sign(privateKey))
+            addBlock(signedBlockToAdd)
+            updateRootBlock(signedBlockToAdd)
+            populateReposWithTransactions(transactions)
+            isUpdating.set(false)
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Generate a new signed admin root block with the specified transactions, and add it to the
+     * repository. Return true if successful, false otherwise.
+     */
+    fun addAdminBlock(transactions: List<Transaction>, password: String): Boolean {
+        if (isUpdating.compareAndSet(false, true)) {
+            val (adminId, adminLocation) = userRepo.loadAdminMetaData()
+            val unsignedBlockToAdd = UnsignedBlock(
+                adminId,
+                Calendar.getInstance().timeInMillis,
+                adminLocation,
+                listOf(signedBlockByCryptoHash[ROOT]!!.cryptoHash),
+                transactions
+            )
+            val privateKey = userRepo.loadAdminPrivateKey(password)
             val signedBlockToAdd =
                 SignedBlock(unsignedBlockToAdd, unsignedBlockToAdd.sign(privateKey))
             addBlock(signedBlockToAdd)

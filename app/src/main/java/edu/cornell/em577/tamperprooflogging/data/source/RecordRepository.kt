@@ -14,10 +14,14 @@ class RecordRepository private constructor(env: Pair<Context, Resources>) {
     private val recordAccesses = GrowOnlySet<Transaction>()
 
     fun addRecordAccess(recordAccess: Transaction) {
-        recordAccesses.add(recordAccess)
+        synchronized(recordAccesses) {
+            recordAccesses.add(recordAccess)
+        }
     }
 
     fun getAllRecordAccesses(): List<Transaction> {
-        return recordAccesses.toList()
+        synchronized(recordAccesses) {
+            return recordAccesses.toList()
+        }
     }
 }

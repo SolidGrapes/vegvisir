@@ -1,6 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent"
-    android:layout_height="match_parent">
+<RelativeLayout
+    xmlns:android = "http://schemas.android.com/apk/res/android"
+    xmlns:tools = "http://schemas.android.com/tools"
+    android:layout_width = "match_parent"
+    android:layout_height = "match_parent"
+    android:paddingStart = "32dp"
+    android:paddingLeft = "32dp"
+    android:paddingRight = "32dp"
+    android:paddingTop = "8dp"
+    android:paddingBottom = "8dp"
+    tools:context="edu.cornell.em577.tamperprooflogging.presentation.RevokeUserActivity">
 
-</android.support.constraint.ConstraintLayout>
+
+    <EditText
+        android:inputType="text"
+        android:layout_width = "wrap_content"
+        android:layout_height = "wrap_content"
+        android:id = "@+id/userIdentifierToRevoke"
+        android:hint="@string/enter_user_identifier"
+        android:focusable = "true"
+        android:textColorHighlight = "#ff7eff15"
+        android:textColorHint = "#ffff25e6"
+        android:layout_marginTop = "46dp"
+        android:layout_alignParentLeft = "true"
+        android:layout_alignParentStart = "true"
+        android:layout_alignParentRight = "true"
+        android:layout_alignParentEnd = "true" />
+
+    <Button
+        android:id="@+id/revokeUser"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignStart="@+id/userIdentifierToRevoke"
+        android:layout_alignLeft="@+id/userIdentifierToRevoke"
+        android:layout_marginTop="123dp"
+        android:onClick="revokeUserCertificateButtonListener"
+        android:text="@string/revoke_user" />
+
+
+    <ListView
+        android:id="@+id/revocableCertificateList"
+        android:layout_width="match_parent"
+        android:layout_height="231dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="35dp" />
+
+    <Button
+        android:id="@+id/adminLogout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignEnd="@+id/userIdentifierToRevoke"
+        android:layout_alignRight="@+id/userIdentifierToRevoke"
+        android:layout_alignTop="@+id/revokeUser"
+        android:onClick="adminLogoutButtonListener"
+        android:text="@string/logout" />
+
+    <TextView
+        android:id="@+id/revokeUserResult"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="218dp"
+        android:gravity="center"
+        android:textSize="25sp"
+        android:visibility="invisible" />
+
+</RelativeLayout>

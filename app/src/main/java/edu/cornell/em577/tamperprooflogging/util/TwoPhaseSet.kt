@@ -6,6 +6,10 @@ class TwoPhaseSet<E> {
 
     private val removeSet = HashSet<E>()
 
+    fun lookup(element: E): Boolean {
+        return addSet.contains(element) && !removeSet.contains(element)
+    }
+
     fun add(elementToAdd: E) {
         addSet.add(elementToAdd)
     }

@@ -17,6 +17,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".presentation.UserPanelActivity"/>
         <activity android:name=".presentation.BlockChainBrowserActivity"/>
         <activity android:name=".presentation.ViewBlockActivity"/>
         <activity android:name=".presentation.ViewRecordAccessActivity"/>
