@@ -19,6 +19,9 @@
         </activity>
         <activity android:name=".presentation.BlockChainBrowserActivity"/>
         <activity android:name=".presentation.ViewBlockActivity"/>
+        <activity android:name=".presentation.ViewRecordAccessActivity"/>
+        <activity android:name=".presentation.ViewUserCertificateActivity"/>
+        <activity android:name=".presentation.RevokeUserActivity"/>
         <activity android:name=".presentation.AddBlockActivity"/>
         <activity android:name=".presentation.AddUserActivity"/>
     </application>

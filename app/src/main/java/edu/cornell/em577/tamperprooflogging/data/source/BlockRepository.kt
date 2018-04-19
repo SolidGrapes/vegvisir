@@ -9,6 +9,9 @@ import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.data.model.UnsignedBlock
 import edu.cornell.em577.tamperprooflogging.util.SingletonHolder
+import edu.cornell.em577.tamperprooflogging.util.hexStringToByteArray
+import java.security.KeyFactory
+import java.security.spec.X509EncodedKeySpec
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -32,6 +35,8 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
 
     private val userRepo = UserDataRepository.getInstance(Pair(env.first, env.second))
 
+    private val recordRepo = RecordRepository.getInstance(Pair(env.first, env.second))
+
     init {
         val allDocsQuery = blockstore.createAllDocumentsQuery()
         allDocsQuery.setPrefetch(true)
@@ -40,6 +45,9 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
             val row = result.next()
             signedBlockByCryptoHash[row.documentId] =
                     SignedBlock.fromJson(row.documentProperties as Map<String, Any>)
+        }
+        if (!userRepo.inRegistration()) {
+            populateRepos()
         }
     }
 
@@ -56,12 +64,40 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
         signedBlockByCryptoHash[ROOT] = userCertBlock
         val rootDocument = blockstore.getDocument(ROOT)
         rootDocument.putProperties(userCertBlock.toJson())
+        populateRepos()
     }
 
-    /** Check whether the repository contains a signed block with the given crypto hash */
-    fun containsBlock(cryptoHash: String): Boolean {
-        synchronized(signedBlockByCryptoHash) {
-            return cryptoHash in signedBlockByCryptoHash
+    private fun populateRepos() {
+        val rootBlock = signedBlockByCryptoHash[ROOT]!!
+        val stack = ArrayDeque<SignedBlock>(listOf(rootBlock))
+        while (stack.isNotEmpty()) {
+            val currentBlock = stack.pop()
+            populateReposWithTransactions(currentBlock.unsignedBlock.transactions)
+            for (parentHash in currentBlock.unsignedBlock.parentHashes) {
+                val parentBlock = signedBlockByCryptoHash[parentHash]!!
+                stack.push(parentBlock)
+            }
+        }
+    }
+
+    private fun populateReposWithTransactions(transactions: List<Transaction>) {
+        for (transaction in transactions) {
+            when (transaction.type) {
+                Transaction.TransactionType.CERTIFICATE -> {
+                    val userId = transaction.content
+                    val hexPublicKey = transaction.comment
+                    val publicKey = userRepo.getPublicKeyFromHexString(hexPublicKey)
+                    userRepo.addUserCertificate(userId, publicKey)
+                }
+                Transaction.TransactionType.REVOKE_CERTIFICATE -> {
+                    val userId = transaction.content
+                    userRepo.removeUserCertificate(userId)
+                }
+                Transaction.TransactionType.RECORD_ACCESS -> {
+                    recordRepo.addRecordAccess(transaction)
+                }
+                Transaction.TransactionType.PROOF_OF_WITNESS -> {}
+            }
         }
     }
 
@@ -71,21 +107,20 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
      */
     fun addBlock(transactions: List<Transaction>, password: String): Boolean {
         if (isUpdating.compareAndSet(false, true)) {
-            synchronized(signedBlockByCryptoHash) {
-                val (userId, userLocation) = userRepo.loadUserMetaData()
-                val unsignedBlockToAdd = UnsignedBlock(
-                    userId,
-                    Calendar.getInstance().timeInMillis,
-                    userLocation,
-                    listOf(signedBlockByCryptoHash[ROOT]!!.cryptoHash),
-                    transactions
-                )
-                val privateKey = userRepo.loadUserPrivateKey(password)
-                val signedBlockToAdd =
-                    SignedBlock(unsignedBlockToAdd, unsignedBlockToAdd.sign(privateKey))
-                addBlock(signedBlockToAdd)
-                updateRootBlock(signedBlockToAdd)
-            }
+            val (userId, userLocation) = userRepo.loadUserMetaData()
+            val unsignedBlockToAdd = UnsignedBlock(
+                userId,
+                Calendar.getInstance().timeInMillis,
+                userLocation,
+                listOf(signedBlockByCryptoHash[ROOT]!!.cryptoHash),
+                transactions
+            )
+            val privateKey = userRepo.loadUserPrivateKey(password)
+            val signedBlockToAdd =
+                SignedBlock(unsignedBlockToAdd, unsignedBlockToAdd.sign(privateKey))
+            addBlock(signedBlockToAdd)
+            updateRootBlock(signedBlockToAdd)
+            populateReposWithTransactions(transactions)
             isUpdating.set(false)
             return true
         }
@@ -123,6 +158,13 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     /** Indicate to the repository that a remote data exchange has completed */
     fun endExchange() {
         isUpdating.set(false)
+    }
+
+    /** Check whether the repository contains a signed block with the given crypto hash */
+    fun containsBlock(cryptoHash: String): Boolean {
+        synchronized(signedBlockByCryptoHash) {
+            return cryptoHash in signedBlockByCryptoHash
+        }
     }
 
     /**

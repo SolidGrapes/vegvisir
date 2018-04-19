@@ -6,7 +6,9 @@ import com.couchbase.lite.Manager
 import com.couchbase.lite.android.AndroidContext
 import com.couchbase.lite.util.IOUtils
 import edu.cornell.em577.tamperprooflogging.R
+import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.util.SingletonHolder
+import edu.cornell.em577.tamperprooflogging.util.TwoPhaseSet
 import edu.cornell.em577.tamperprooflogging.util.hexStringToByteArray
 import edu.cornell.em577.tamperprooflogging.util.toHex
 import java.security.KeyFactory
@@ -53,6 +55,9 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
     private val userstore = Manager(AndroidContext(env.first), Manager.DEFAULT_OPTIONS)
         .getDatabase("userstore")
 
+    private val userGroup = TwoPhaseSet<String>()
+    private val publicKeyByUserId = HashMap<String, PublicKey>()
+
     private val applicationResources = env.second
     private var inRegistration: Boolean
 
@@ -77,12 +82,6 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
 
     fun loadAdminMetaData(): Pair<String, String> {
         return Pair(ADMIN_NAME, ADMIN_LOCATION)
-    }
-
-    fun loadAdminPublicKey(): PublicKey {
-        val x509EncodedKeySpec = X509EncodedKeySpec(getBytesFromRawRes(R.raw.ca_public_key))
-        val keyFactory = KeyFactory.getInstance(SIG_KEYGEN_ALGO)
-        return keyFactory.generatePublic(x509EncodedKeySpec)
     }
 
     fun loadAdminHexPublicKey(): String {
@@ -116,13 +115,6 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         val userId = properties[USER_ID] as String
         val userLocation = properties[USER_LOCATION] as String
         return Pair(userId, userLocation)
-    }
-
-    fun loadUserPublicKey(): PublicKey {
-        val hexPublicKey = loadUserHexPublicKey()
-        val x509EncodedKeySpec = X509EncodedKeySpec(hexPublicKey.hexStringToByteArray())
-        val keyFactory = KeyFactory.getInstance(SIG_KEYGEN_ALGO)
-        return keyFactory.generatePublic(x509EncodedKeySpec)
     }
 
     fun loadUserHexPublicKey(): String {
@@ -220,5 +212,28 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
 
     private fun getBytesFromRawRes(id: Int): ByteArray {
         return IOUtils.toByteArray(applicationResources.openRawResource(id))
+    }
+
+    fun addUserCertificate(userId: String, publicKey: PublicKey) {
+        userGroup.add(userId)
+        publicKeyByUserId[userId] = publicKey
+    }
+
+    fun removeUserCertificate(userId: String) {
+        userGroup.remove(userId)
+    }
+
+    fun getAllUserCertificates(): List<Pair<String, PublicKey>> {
+        return userGroup.toList().map { Pair(it, publicKeyByUserId[it]!!) }
+    }
+
+    fun getUserCertificate(userId: String): PublicKey? {
+        return publicKeyByUserId[userId]
+    }
+
+    fun getPublicKeyFromHexString(hexPublicKey: String): PublicKey {
+        val x509EncodedKeySpec = X509EncodedKeySpec(hexPublicKey.hexStringToByteArray())
+        val keyFactory = KeyFactory.getInstance(UserDataRepository.SIG_KEYGEN_ALGO)
+        return keyFactory.generatePublic(x509EncodedKeySpec)
     }
 }
