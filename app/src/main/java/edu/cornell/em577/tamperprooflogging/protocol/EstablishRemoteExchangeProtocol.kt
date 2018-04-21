@@ -2,6 +2,7 @@ package edu.cornell.em577.tamperprooflogging.protocol
 
 import android.content.Context
 import android.content.res.Resources
+import com.google.protobuf.InvalidProtocolBufferException
 import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
@@ -84,7 +85,7 @@ class EstablishRemoteExchangeProtocol private constructor(env: Triple<BlockRepos
                         if (parsedMessage.type == ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE) {
                             break
                         }
-                    } catch (ute: UnexpectedTerminationException) {
+                    } catch (e: Exception) {
                         mergeRemoteBlockChainProtocol.responseChannel.send(null)
                         serviceRPCProtocol.requestChannel.send(null)
                         break

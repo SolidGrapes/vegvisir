@@ -47,7 +47,6 @@ class RevokeUserActivity : AppCompatActivity() {
             revokeUserResultTextView.text = resources.getText(R.string.user_is_not_active)
             revokeUserResultTextView.textColor = Color.RED
         } else if (blockRepo.addAdminBlock(listOf(transactionToAdd), adminPassword!!)) {
-            userRepo.removeUserCertificate(userIdToRevoke)
             certificateList.clear()
             certificateList.addAll(userRepo.getAllUserCertificates())
             certificateAdapter?.notifyDataSetChanged()

@@ -2,7 +2,6 @@ package edu.cornell.em577.tamperprooflogging.data.source
 
 import android.content.Context
 import android.content.res.Resources
-import android.util.Log
 import com.couchbase.lite.Manager
 import com.couchbase.lite.android.AndroidContext
 import edu.cornell.em577.tamperprooflogging.data.exception.SignedBlockNotFoundException
@@ -155,10 +154,32 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
         document.putProperties(block.toJson())
     }
 
+    /** Update the signed root block in the repository */
+    private fun updateRootBlock(signedRootBlock: SignedBlock) {
+        signedBlockByCryptoHash[ROOT] = signedRootBlock
+        val rootDocument = blockstore.getDocument(ROOT)
+        val properties = HashMap(rootDocument.properties)
+        properties.putAll(signedRootBlock.toJson())
+        rootDocument.putProperties(properties)
+    }
+
+
     /** Indicate to the repository that a remote data exchange is ongoing */
     fun beginExchange() {
         while (!isUpdating.compareAndSet(false, true)) {
             // Spin-lock on flag
+        }
+    }
+
+    fun verifyBlocks(blocksToVerify: List<SignedBlock>): Boolean {
+        synchronized(signedBlockByCryptoHash) {
+            for (block in blocksToVerify) {
+                val publicKey = userRepo.getUserCertificate(block.unsignedBlock.userId)
+                if (publicKey == null || !block.verify(publicKey)) {
+                    return false
+                }
+            }
+            return true
         }
     }
 
@@ -169,9 +190,8 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     fun updateBlockChain(signedBlocksToAdd: List<SignedBlock>, rootSignedBlock: SignedBlock) {
         synchronized(signedBlockByCryptoHash) {
             signedBlocksToAdd.forEach({
-                signedBlockByCryptoHash[it.cryptoHash] = it
-                val document = blockstore.getDocument(it.cryptoHash)
-                document.putProperties(it.toJson())
+                addBlock(it)
+                populateReposWithTransactions(it.unsignedBlock.transactions)
             })
             updateRootBlock(rootSignedBlock)
         }
@@ -201,15 +221,6 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
                 )
             })
         }
-    }
-
-    /** Update the signed root block in the repository */
-    private fun updateRootBlock(signedRootBlock: SignedBlock) {
-        signedBlockByCryptoHash[ROOT] = signedRootBlock
-        val rootDocument = blockstore.getDocument(ROOT)
-        val properties = HashMap(rootDocument.properties)
-        properties.putAll(signedRootBlock.toJson())
-        rootDocument.putProperties(properties)
     }
 
     /**

@@ -3,6 +3,7 @@ package edu.cornell.em577.tamperprooflogging.data.model
 import android.util.Base64
 import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
+import edu.cornell.em577.tamperprooflogging.util.toHex
 import java.security.PrivateKey
 import java.security.Signature
 import java.util.*
@@ -116,6 +117,6 @@ data class UnsignedBlock(
         sig.update(location.toByteArray())
         sig.update(parentHashes.sorted().toString().toByteArray())
         sig.update(transactions.map { it.toString() }.sorted().toString().toByteArray())
-        return Base64.encodeToString(sig.sign(), Base64.DEFAULT)
+        return sig.sign().toHex()
     }
 }

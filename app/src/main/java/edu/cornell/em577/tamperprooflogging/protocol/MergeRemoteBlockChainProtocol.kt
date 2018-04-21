@@ -1,7 +1,5 @@
 package edu.cornell.em577.tamperprooflogging.protocol
 
-import android.content.Context
-import android.content.res.Resources
 import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
@@ -67,13 +65,31 @@ class MergeRemoteBlockChainProtocol(
     }
 
     /**
-     * Populates the provided collection of blocks to add with the local and remote proof of witness
-     * blocks. Returns the new root node of the blockchain.
+     * Populates the provided collection of blocks to add with the proof of witness blocks
+     * Returns the new root node of the blockchain.
      */
     private suspend fun addProofOfWitnessBlocks(
         blocksToAddByCryptoHash: HashMap<String, SignedBlock>,
-        frontierHashes: List<String>
+        frontierHashes: List<String>,
+        currentRootBlock: SignedBlock,
+        remoteRootBlock: SignedBlock
     ): SignedBlock {
+        if (blockRepo.containsBlock(remoteRootBlock.cryptoHash)) {
+            val remoteProofOfWitnessBlock = getRemoteProofOfWitnessBlock(frontierHashes)
+            blocksToAddByCryptoHash[remoteProofOfWitnessBlock.cryptoHash] =
+                    remoteProofOfWitnessBlock
+            return remoteProofOfWitnessBlock
+        } else if (currentRootBlock.cryptoHash !in frontierHashes) {
+            val localProofOfWitnessBlock = SignedBlock.generateProofOfWitness(
+                userRepo,
+                userPassword,
+                frontierHashes,
+                localTimestamp
+            )
+            blocksToAddByCryptoHash[localProofOfWitnessBlock.cryptoHash] = localProofOfWitnessBlock
+            return localProofOfWitnessBlock
+        }
+
         val remoteTimestamp = getRemoteTimestamp()
         return if (remoteTimestamp > localTimestamp) {
             val localProofOfWitnessBlock = SignedBlock.generateProofOfWitness(
@@ -82,6 +98,7 @@ class MergeRemoteBlockChainProtocol(
                 frontierHashes,
                 localTimestamp
             )
+
             val remoteProofOfWitnessBlock =
                 getRemoteProofOfWitnessBlock(listOf(localProofOfWitnessBlock.cryptoHash))
             blocksToAddByCryptoHash[remoteProofOfWitnessBlock.cryptoHash] =
@@ -115,8 +132,16 @@ class MergeRemoteBlockChainProtocol(
                     currentRootBlock,
                     remoteRootBlock
                 )
-                val root = addProofOfWitnessBlocks(blocksToAddByCryptoHash, frontierHashes)
-                blockRepo.updateBlockChain(blocksToAddByCryptoHash.values.toList(), root)
+                val root = addProofOfWitnessBlocks(
+                    blocksToAddByCryptoHash,
+                    frontierHashes,
+                    currentRootBlock,
+                    remoteRootBlock
+                )
+                val blocksToAdd = blocksToAddByCryptoHash.values.toList()
+                if (blockRepo.verifyBlocks(blocksToAdd)) {
+                    blockRepo.updateBlockChain(blocksToAdd, root)
+                }
                 val mergeCompleteMessage = ProtocolMessageProto.ProtocolMessage.newBuilder()
                     .setType(ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE)
                     .setNoBody(true)
@@ -144,7 +169,7 @@ class MergeRemoteBlockChainProtocol(
                 ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_RESPONSE
             ) {
                 if (response.getRemoteRootBlockResponse.failedToRetrieve) {
-                    throw UnexpectedTerminationException("Remote exception detected")
+                    throw UnexpectedTerminationException("Could not retrieve remote root block")
                 }
                 return SignedBlock.fromProto(response.getRemoteRootBlockResponse.remoteRootBlock)
             }
@@ -170,13 +195,17 @@ class MergeRemoteBlockChainProtocol(
                 ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_RESPONSE
             ) {
                 if (response.getRemoteBlocksResponse.failedToRetrieve) {
-                    throw UnexpectedTerminationException("Remote exception detected")
+                    throw UnexpectedTerminationException("Could not retrieve remote blocks")
                 }
-                return response.getRemoteBlocksResponse.remoteBlocksList.map {
+                val result = response.getRemoteBlocksResponse.remoteBlocksList.map {
                     SignedBlock.fromProto(
                         it
                     )
                 }
+                if (result.map { it.cryptoHash }.toSet() != cryptoHashes.toSet()) {
+                    throw UnexpectedTerminationException("Retrieved incomplete or incorrect set of remote blocks")
+                }
+                return result
             }
         }
     }
@@ -199,7 +228,11 @@ class MergeRemoteBlockChainProtocol(
             } else if (response.type ==
                 ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_RESPONSE
             ) {
-                return SignedBlock.fromProto(response.getRemoteProofOfWitnessBlockResponse.remoteProofOfWitnessBlock)
+                val result = SignedBlock.fromProto(response.getRemoteProofOfWitnessBlockResponse.remoteProofOfWitnessBlock)
+                if (result.unsignedBlock.parentHashes.toSet() != parentHashes.toSet()) {
+                    throw UnexpectedTerminationException("Retrieved incorrect remote proof of witness block")
+                }
+                return result
             }
         }
     }

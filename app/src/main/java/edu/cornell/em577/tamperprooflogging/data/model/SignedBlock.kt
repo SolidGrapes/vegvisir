@@ -1,9 +1,12 @@
 package edu.cornell.em577.tamperprooflogging.data.model
 
-import android.util.Base64
 import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
+import edu.cornell.em577.tamperprooflogging.util.hexStringToByteArray
+import edu.cornell.em577.tamperprooflogging.util.toHex
 import java.security.MessageDigest
+import java.security.PublicKey
+import java.security.Signature
 
 /**
  * Includes an UnsignedBlock together with a Base64 encoded cryptographic signature of the
@@ -24,7 +27,7 @@ data class SignedBlock(
             it.toString()
         }.sorted().toString().toByteArray())
         digest.update(signature.toByteArray())
-        Base64.encodeToString(digest.digest(), Base64.DEFAULT)
+        digest.digest().toHex()
     }
 
     companion object {
@@ -81,5 +84,16 @@ data class SignedBlock(
         val properties = unsignedBlock.toJson()
         properties[SIGNATURE] = signature
         return properties
+    }
+
+    fun verify(publicKey: PublicKey): Boolean {
+        val sig = Signature.getInstance("SHA256withRSA")
+        sig.initVerify(publicKey)
+        sig.update(unsignedBlock.userId.toByteArray())
+        sig.update(unsignedBlock.timestamp.toString().toByteArray())
+        sig.update(unsignedBlock.location.toByteArray())
+        sig.update(unsignedBlock.parentHashes.sorted().toString().toByteArray())
+        sig.update(unsignedBlock.transactions.map { it.toString() }.sorted().toString().toByteArray())
+        return sig.verify(signature.hexStringToByteArray())
     }
 }
