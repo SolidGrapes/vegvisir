@@ -6,7 +6,6 @@ import com.couchbase.lite.Manager
 import com.couchbase.lite.android.AndroidContext
 import com.couchbase.lite.util.IOUtils
 import edu.cornell.em577.tamperprooflogging.R
-import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.util.SingletonHolder
 import edu.cornell.em577.tamperprooflogging.util.TwoPhaseSet
 import edu.cornell.em577.tamperprooflogging.util.hexStringToByteArray

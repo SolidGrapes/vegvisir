@@ -172,15 +172,13 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     }
 
     fun verifyBlocks(blocksToVerify: List<SignedBlock>): Boolean {
-        synchronized(signedBlockByCryptoHash) {
-            for (block in blocksToVerify) {
-                val publicKey = userRepo.getUserCertificate(block.unsignedBlock.userId)
-                if (publicKey == null || !block.verify(publicKey)) {
-                    return false
-                }
+        for (block in blocksToVerify) {
+            val publicKey = userRepo.getUserCertificate(block.unsignedBlock.userId)
+            if (publicKey == null || !block.verify(publicKey)) {
+                return false
             }
-            return true
         }
+        return true
     }
 
     /**

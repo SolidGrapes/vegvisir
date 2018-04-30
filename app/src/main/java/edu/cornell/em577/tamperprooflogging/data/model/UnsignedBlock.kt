@@ -1,6 +1,5 @@
 package edu.cornell.em577.tamperprooflogging.data.model
 
-import android.util.Base64
 import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 import edu.cornell.em577.tamperprooflogging.util.toHex
