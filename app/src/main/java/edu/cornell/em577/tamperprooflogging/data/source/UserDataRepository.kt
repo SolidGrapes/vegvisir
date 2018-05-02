@@ -50,6 +50,11 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         private const val KEY_LEN = 256
     }
 
+    enum class CertificateStatus {
+        REVOKED,
+        ISSUED
+    }
+
     // Persistent user store
     private val userstore = Manager(AndroidContext(env.first), Manager.DEFAULT_OPTIONS)
         .getDatabase("userstore")
@@ -238,21 +243,37 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         }
     }
 
-    fun getAllUserCertificates(): List<Pair<String, PublicKey>> {
+    fun getAllUserCertificates(): List<Triple<String, PublicKey, CertificateStatus>> {
         synchronized(userGroup) {
-            return userGroup.toList().sorted().map { Pair(it, publicKeyByUserId[it]!!) }
+            val (currentSet, removedSet) = userGroup.toList()
+            val issuedCerts = currentSet.sorted().map {
+                Triple(it, publicKeyByUserId[it]!!, CertificateStatus.ISSUED)
+            }
+            val revokedCerts = removedSet.sorted().map {
+                Triple(it, publicKeyByUserId[it]!!, CertificateStatus.REVOKED)
+            }
+            val userCerts = ArrayList<Triple<String, PublicKey, CertificateStatus>>()
+            userCerts.addAll(issuedCerts)
+            userCerts.addAll(revokedCerts)
+            return userCerts
         }
     }
 
+    fun getAdminPublicKey(): PublicKey? {
+        return publicKeyByUserId[ADMIN_NAME]
+    }
+
+    fun isAdmin(userId: String): Boolean {
+        return userId == ADMIN_NAME
+    }
+
+    /**
+     * Checks whether the user with the provided userId has a valid certificate that has not
+     * been revoked
+     */
     fun isActiveUser(userId: String): Boolean {
         synchronized(userGroup) {
             return userGroup.lookup(userId)
-        }
-    }
-
-    fun getUserCertificate(userId: String): PublicKey? {
-        synchronized(userGroup) {
-            return publicKeyByUserId[userId]
         }
     }
 }

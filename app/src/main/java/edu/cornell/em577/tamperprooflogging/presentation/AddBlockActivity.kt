@@ -9,9 +9,13 @@ import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
 import edu.cornell.em577.tamperprooflogging.R
+import edu.cornell.em577.tamperprooflogging.data.exception.PermissionNotFoundException
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import org.jetbrains.anko.textColor
+import android.content.Intent
+
+
 
 class AddBlockActivity : AppCompatActivity() {
 
@@ -42,12 +46,18 @@ class AddBlockActivity : AppCompatActivity() {
         }
         val addBlockResultTextView = findViewById<TextView>(R.id.addBlockResult)
         addBlockResultTextView.visibility = View.VISIBLE
-        if (blockRepo.addUserBlock(transactionsToAdd, userPassword!!)) {
-            addBlockResultTextView.text = resources.getText(R.string.successfully_added_block)
-            addBlockResultTextView.textColor = Color.GREEN
-        } else {
-            addBlockResultTextView.text = resources.getText(R.string.merge_in_progress)
-            addBlockResultTextView.textColor = Color.RED
+        try {
+            if (blockRepo.addUserBlock(transactionsToAdd, userPassword!!)) {
+                addBlockResultTextView.text = resources.getText(R.string.successfully_added_block)
+                addBlockResultTextView.textColor = Color.GREEN
+            } else {
+                addBlockResultTextView.text = resources.getText(R.string.merge_in_progress)
+                addBlockResultTextView.textColor = Color.RED
+            }
+        } catch (e: PermissionNotFoundException) {
+            val intent = Intent(this, LoginActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            startActivity(intent)
         }
     }
 

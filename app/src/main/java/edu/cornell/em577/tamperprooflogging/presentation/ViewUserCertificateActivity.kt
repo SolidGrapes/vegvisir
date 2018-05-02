@@ -16,7 +16,7 @@ class ViewUserCertificateActivity : AppCompatActivity() {
 
         val certificateListView = findViewById<ListView>(R.id.certificateList)
         val userRepo = UserDataRepository.getInstance(Pair(applicationContext, resources))
-        val adapter = ArrayAdapter<Pair<String, PublicKey>>(
+        val adapter = ArrayAdapter<Triple<String, PublicKey, UserDataRepository.CertificateStatus>>(
             this@ViewUserCertificateActivity,
             R.layout.transaction_list_item,
             userRepo.getAllUserCertificates())

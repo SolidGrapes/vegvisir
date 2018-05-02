@@ -18,7 +18,7 @@ class TwoPhaseSet<E> {
         removeSet.add(elementToRemove)
     }
 
-    fun toList(): List<E> {
-        return addSet.minus(removeSet).toList()
+    fun toList(): Pair<List<E>, List<E>> {
+        return Pair(addSet.minus(removeSet).toList(), removeSet.toList())
     }
 }

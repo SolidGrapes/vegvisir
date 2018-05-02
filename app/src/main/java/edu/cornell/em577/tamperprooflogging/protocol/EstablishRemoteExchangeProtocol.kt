@@ -1,13 +1,9 @@
 package edu.cornell.em577.tamperprooflogging.protocol
 
-import android.content.Context
-import android.content.res.Resources
-import com.google.protobuf.InvalidProtocolBufferException
 import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 import edu.cornell.em577.tamperprooflogging.protocol.exception.BadMessageException
-import edu.cornell.em577.tamperprooflogging.protocol.exception.UnexpectedTerminationException
 import edu.cornell.em577.tamperprooflogging.util.SingletonHolder
 import kotlinx.coroutines.experimental.CommonPool
 import kotlinx.coroutines.experimental.async

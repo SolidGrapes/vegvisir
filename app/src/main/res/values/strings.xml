@@ -16,6 +16,7 @@
     <string name="user_is_not_active">User Is Not Active</string>
     <string name="successfully_added_block">Successfully Add Block</string>
     <string name="successfully_revoked_user_certificate">Successfully Revoked User Certificate</string>
+    <string name="admin_certificate_cannot_be_revoked">Admin Certificate Cannot Be Revoked</string>
     <string name="enter_password">Enter Password</string>
     <string name="incorrect_credentials">Incorrect Credentials</string>
 
@@ -30,5 +31,10 @@
     <string name="view_blockchain">View Blockchain</string>
     <string name="view_record_accesses">View Record Accesses</string>
     <string name="view_user_certificates">View User Certificates</string>
+
+    <!--Network String Constants-->
+    <string name="role">client</string>
+    <string name="server_ip_address">10.0.2.15</string>
+    <string name="server_port_num">8080</string>
 
 </resources>

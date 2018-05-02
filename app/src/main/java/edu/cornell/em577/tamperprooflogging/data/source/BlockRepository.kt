@@ -4,11 +4,13 @@ import android.content.Context
 import android.content.res.Resources
 import com.couchbase.lite.Manager
 import com.couchbase.lite.android.AndroidContext
+import edu.cornell.em577.tamperprooflogging.data.exception.PermissionNotFoundException
 import edu.cornell.em577.tamperprooflogging.data.exception.SignedBlockNotFoundException
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.data.model.UnsignedBlock
 import edu.cornell.em577.tamperprooflogging.util.SingletonHolder
+import java.security.PublicKey
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -97,12 +99,15 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     }
 
     /**
-     * Generate a new signed user root block with the specified transactions, and add it to the
-     * repository. Return true if successful, false otherwise.
+     * Generate a new signed user root block with the specified transactions if the user is active,
+     * and add it to the repository. Return true if successful, false otherwise.
      */
     fun addUserBlock(transactions: List<Transaction>, password: String): Boolean {
         if (isUpdating.compareAndSet(false, true)) {
             val (userId, userLocation) = userRepo.loadUserMetaData()
+            if (!userRepo.isActiveUser(userId)) {
+                throw PermissionNotFoundException("User certificate has been revoked")
+            }
             val unsignedBlockToAdd = UnsignedBlock(
                 userId,
                 Calendar.getInstance().timeInMillis,
@@ -172,8 +177,34 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     }
 
     fun verifyBlocks(blocksToVerify: List<SignedBlock>): Boolean {
+        val userCerts = HashMap<String, PublicKey>()
+
+        for ((userId, publicKey) in userRepo.getAllUserCertificates()) {
+            userCerts[userId] = publicKey
+        }
+
+        val adminPublicKey = userRepo.getAdminPublicKey()!!
         for (block in blocksToVerify) {
-            val publicKey = userRepo.getUserCertificate(block.unsignedBlock.userId)
+            val isCertBlock = block.unsignedBlock.transactions.any({
+                it.type == Transaction.TransactionType.CERTIFICATE
+            })
+            if (isCertBlock) {
+                if (!block.verify(adminPublicKey)) {
+                    return false
+                }
+                for (transaction in block.unsignedBlock.transactions) {
+                    if (transaction.type == Transaction.TransactionType.CERTIFICATE) {
+                        val userId = transaction.content
+                        val hexPublicKey = transaction.comment
+                        val publicKey = userRepo.getPublicKeyFromHexString(hexPublicKey)
+                        userCerts[userId] = publicKey
+                    }
+                }
+            }
+        }
+
+        for (block in blocksToVerify) {
+            val publicKey = userCerts[block.unsignedBlock.userId]
             if (publicKey == null || !block.verify(publicKey)) {
                 return false
             }

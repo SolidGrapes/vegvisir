@@ -18,8 +18,8 @@ import java.security.PublicKey
 class RevokeUserActivity : AppCompatActivity() {
 
     private var adminPassword: String? = null
-    private var certificateList = ArrayList<Pair<String, PublicKey>>()
-    private var certificateAdapter: ArrayAdapter<Pair<String, PublicKey>>? = null
+    private var certificateList = ArrayList<Triple<String, PublicKey, UserDataRepository.CertificateStatus>>()
+    private var certificateAdapter: ArrayAdapter<Triple<String, PublicKey, UserDataRepository.CertificateStatus>>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +43,10 @@ class RevokeUserActivity : AppCompatActivity() {
         val transactionToAdd = Transaction.generateRevocation(userIdToRevoke)
         val revokeUserResultTextView = findViewById<TextView>(R.id.revokeUserResult)
         revokeUserResultTextView.visibility = View.VISIBLE
-        if (!userRepo.isActiveUser(userIdToRevoke)) {
+        if (userRepo.isAdmin(userIdToRevoke)) {
+            revokeUserResultTextView.text = resources.getText(R.string.admin_certificate_cannot_be_revoked)
+            revokeUserResultTextView.textColor = Color.RED
+        } else if (!userRepo.isActiveUser(userIdToRevoke)) {
             revokeUserResultTextView.text = resources.getText(R.string.user_is_not_active)
             revokeUserResultTextView.textColor = Color.RED
         } else if (blockRepo.addAdminBlock(listOf(transactionToAdd), adminPassword!!)) {
