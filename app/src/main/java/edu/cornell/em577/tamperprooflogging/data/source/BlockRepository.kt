@@ -187,22 +187,86 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
      * a certificate by the admin. Also verifies that each provided block did not descend from a
      * certificate revocation block that revoked the certificate of the user that signed that block.
      */
-    fun verifyBlocks(blocksToVerify: List<SignedBlock>): Boolean {
+    fun verifyBlocks(blocksToVerifyByCryptoHash: HashMap<String, SignedBlock>): Boolean {
+        val blocksToVerify = blocksToVerifyByCryptoHash.values.toList()
+        val existingCerts = getExistingUserCerts()
+        val (extractedCerts, extractedCertBlocks) = extractUserCert(blocksToVerify)
+        if (!verifyUserCertBlocks(extractedCertBlocks)) {
+            return false
+        }
         val userCerts = HashMap<String, PublicKey>()
+        existingCerts.forEach({ userCerts[it.key] = it.value })
+        extractedCerts.forEach({ userCerts[it.key] = it.value })
+        if (!verifySignaturesOfBlocks(blocksToVerify, userCerts)) {
+            return false
+        }
+        return verifyAncestryOfBlocks(blocksToVerifyByCryptoHash)
+    }
 
-        for ((userId, publicKey) in userRepo.getAllUserCertificates()) {
-            userCerts[userId] = publicKey
+    /**
+     * Verify that each provided block does not descend form a certificate revocation block that
+     * revoked the certificate of the user that signed that block.
+     */
+    private fun verifyAncestryOfBlocks(blocksToVerifyByCryptoHash: HashMap<String, SignedBlock>): Boolean {
+        for (block in blocksToVerifyByCryptoHash.values) {
+            val userId = block.unsignedBlock.userId
+            val stack = ArrayDeque<SignedBlock>(listOf(block))
+            while (stack.isNotEmpty()) {
+                val current = stack.pop()
+                if (current.unsignedBlock.transactions.any({
+                        it.type == Transaction.TransactionType.REVOKE_CERTIFICATE && it.content == userId
+                    })) {
+                    return false
+                }
+                current.unsignedBlock.parentHashes.forEach({
+                    if (it in blocksToVerifyByCryptoHash) {
+                        stack.push(blocksToVerifyByCryptoHash[it])
+                    } else if (it in signedBlockByCryptoHash) {
+                        stack.push(signedBlockByCryptoHash[it])
+                    }
+                })
+            }
         }
 
-        val adminPublicKey = userRepo.getAdminPublicKey()!!
+        return true
+    }
+
+    /**
+     * Verify that the provided blocks have valid signatures using the provided set of valid user
+     * certificates.
+     */
+    private fun verifySignaturesOfBlocks(blocksToVerify: List<SignedBlock>, userCerts: HashMap<String, PublicKey>): Boolean {
         for (block in blocksToVerify) {
+            val publicKey = userCerts[block.unsignedBlock.userId]
+            if (publicKey == null || !block.verify(publicKey)) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    /** Verify that the user certificate blocks provided were signed by the admin. */
+    private fun verifyUserCertBlocks(blocks: List<SignedBlock>): Boolean {
+        val adminPublicKey = userRepo.getAdminPublicKey()!!
+        for (block in blocks) {
+            if (!block.verify(adminPublicKey)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /** Extracts the user certificates from the provided blocks. */
+    private fun extractUserCert(blocks: List<SignedBlock>): Pair<HashMap<String, PublicKey>, List<SignedBlock>> {
+        val userCerts = HashMap<String, PublicKey>()
+        val userCertBlocks = ArrayList<SignedBlock>()
+        for (block in blocks) {
             val isCertBlock = block.unsignedBlock.transactions.any({
                 it.type == Transaction.TransactionType.CERTIFICATE
             })
             if (isCertBlock) {
-                if (!block.verify(adminPublicKey)) {
-                    return false
-                }
+                userCertBlocks.add(block)
                 for (transaction in block.unsignedBlock.transactions) {
                     if (transaction.type == Transaction.TransactionType.CERTIFICATE) {
                         val userId = transaction.content
@@ -213,17 +277,18 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
                 }
             }
         }
-
-        for (block in blocksToVerify) {
-            val publicKey = userCerts[block.unsignedBlock.userId]
-            if (publicKey == null || !block.verify(publicKey)) {
-                return false
-            }
-        }
-        // Add verification that each block to be added did not descend from a revocation block
-        // that revoked the certificate of the user that signed that block.
-        return true
+        return Pair(userCerts, userCertBlocks)
     }
+
+    /** Retrieves the existing user certificates from the UserDataRepository. */
+    private fun getExistingUserCerts(): HashMap<String, PublicKey> {
+        val userCerts = HashMap<String, PublicKey>()
+        for ((userId, publicKey) in userRepo.getAllUserCertificates()) {
+            userCerts[userId] = publicKey
+        }
+        return userCerts
+    }
+
 
     /**
      * Updates the repository with the signed blocks to add as well as the new signed root block.

@@ -138,7 +138,6 @@ class MergeRemoteBlockChainProtocol(
                 currentRootBlock,
                 remoteRootBlock
             )
-            // Verify before adding proof of witness blocks.
             val root = addProofOfWitnessBlocks(
                 blocksToAddByCryptoHash,
                 frontierHashes,
@@ -146,7 +145,7 @@ class MergeRemoteBlockChainProtocol(
                 remoteRootBlock
             )
             val blocksToAdd = blocksToAddByCryptoHash.values.toList()
-            if (blockRepo.verifyBlocks(blocksToAdd)) {
+            if (blockRepo.verifyBlocks(blocksToAddByCryptoHash)) {
                 blockRepo.updateBlockChain(blocksToAdd, root)
             }
             val mergeCompleteMessage = ProtocolMessageProto.ProtocolMessage.newBuilder()
