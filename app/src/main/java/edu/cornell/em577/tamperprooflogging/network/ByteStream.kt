@@ -93,9 +93,8 @@ class ByteStream private constructor(env: Pair<Context, String>) {
                     mEndpointId = Endpoint(endpointId)
                     mEstablishedConnection.put(mEndpointId)
                     setState(State.CONNECTED)
-                } else if (mState == State.SEARCHING) {
-                    startAdvertising()
-                    startDiscovering()
+                } else {
+                    setState(State.SEARCHING)
                 }
             }
         }
