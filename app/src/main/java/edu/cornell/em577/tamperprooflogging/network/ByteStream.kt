@@ -46,7 +46,6 @@ class ByteStream private constructor(env: Pair<Context, String>) {
 
         /** Connection states. */
         private enum class State {
-            IDLE,
             SEARCHING,
             CONNECTED
         }
@@ -62,17 +61,13 @@ class ByteStream private constructor(env: Pair<Context, String>) {
     private val mEstablishedConnection = LinkedBlockingQueue<Endpoint>(1)
 
     /**
-     * Identifier of the device we are currently connection to. Null if we are not connected to
+     * Identifier of the device we are currently in connection with. Null if we are not connected to
      * any device.
      */
-    @Volatile
     private var mEndpointId: Endpoint? = null
 
     /** Current state of the connection. */
-    private var mState = State.IDLE
-
-    /** Flag to indicate whether we are currently connecting */
-    private var mIsConnecting = false
+    private var mState = State.SEARCHING
 
     /** Buffer of received byte arrays. */
     private val mRecvBuffer = LinkedBlockingQueue<ByteArray>()
@@ -81,7 +76,7 @@ class ByteStream private constructor(env: Pair<Context, String>) {
     private val mConnectionLifecycleCallback = object : ConnectionLifecycleCallback() {
 
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            if (mEstablishedConnection.isEmpty()) {
+            if (mEndpointId == null) {
                 synchronized(mConnectionsClient) {
                     mConnectionsClient.acceptConnection(endpointId, mPayloadCallback)
                 }
@@ -93,14 +88,12 @@ class ByteStream private constructor(env: Pair<Context, String>) {
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-            if (mEstablishedConnection.isEmpty()) {
+            if (mEndpointId == null) {
                 if (result.status.isSuccess) {
                     mEndpointId = Endpoint(endpointId)
                     mEstablishedConnection.put(mEndpointId)
                     setState(State.CONNECTED)
                 } else if (mState == State.SEARCHING) {
-                    setState(State.IDLE)
-                    setState(State.SEARCHING)
                     startAdvertising()
                     startDiscovering()
                 }
@@ -108,8 +101,9 @@ class ByteStream private constructor(env: Pair<Context, String>) {
         }
 
         override fun onDisconnected(endpointId: String) {
-            setState(State.IDLE)
-            setState(State.SEARCHING)
+            if (endpointId == mEndpointId?.id) {
+                setState(State.SEARCHING)
+            }
         }
     }
 
@@ -167,11 +161,11 @@ class ByteStream private constructor(env: Pair<Context, String>) {
     /** Resets and clears all state in Nearby Connections.  */
     private fun stopAllEndpoints() {
         mEndpointId = null
+        mEstablishedConnection.clear()
         mRecvBuffer.clear()
         synchronized(mConnectionsClient) {
             mConnectionsClient.stopAllEndpoints()
         }
-        mEstablishedConnection.clear()
     }
 
     /**
@@ -179,23 +173,19 @@ class ByteStream private constructor(env: Pair<Context, String>) {
      * necessary changes to Google Nearby modes on state changes.
      */
     private fun setState(state: State) {
-        if (mState !== state) {
-            mState = state
+        mState = state
 
-            // Update Nearby Connections to the new state.
-            when (state) {
-                State.SEARCHING -> {
-                    stopAllEndpoints()
-                    startDiscovering()
-                    startAdvertising()
+        when (state) {
+            State.SEARCHING -> {
+                stopAllEndpoints()
+                startDiscovering()
+                startAdvertising()
+            }
+            State.CONNECTED -> {
+                synchronized(mConnectionsClient) {
+                    mConnectionsClient.stopDiscovery()
+                    mConnectionsClient.stopAdvertising()
                 }
-                State.CONNECTED -> {
-                    synchronized(mConnectionsClient) {
-                        mConnectionsClient.stopDiscovery()
-                        mConnectionsClient.stopAdvertising()
-                    }
-                }
-                State.IDLE -> stopAllEndpoints()
             }
         }
     }
@@ -220,10 +210,5 @@ class ByteStream private constructor(env: Pair<Context, String>) {
     /** Blocking call that returns the byte array sent by the corresponding remote send call. */
     fun recv(): ByteArray {
         return mRecvBuffer.take()
-    }
-
-    /** Terminates all current outgoing connections and enters the IDLE state. */
-    fun close() {
-        setState(State.IDLE)
     }
 }
