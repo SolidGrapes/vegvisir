@@ -15,12 +15,17 @@ import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 import org.jetbrains.anko.textColor
 import java.security.PublicKey
 
+/** Activity responsible for issuing user revocation certificates. */
 class RevokeUserActivity : AppCompatActivity() {
 
     private var adminPassword: String? = null
     private var certificateList = ArrayList<Triple<String, PublicKey, UserDataRepository.CertificateStatus>>()
     private var certificateAdapter: ArrayAdapter<Triple<String, PublicKey, UserDataRepository.CertificateStatus>>? = null
 
+    /**
+     * Displays the list of user certificates to revoke as well as previously revoked user
+     * certificates that this device knows of.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_revoke_user)
@@ -35,6 +40,11 @@ class RevokeUserActivity : AppCompatActivity() {
         revocableCertificateListView.adapter = certificateAdapter
     }
 
+    /**
+     * Listener that triggers when the revokeUserCertificateButton is pressed. Specifically the
+     * user with the userId supplied by the admin through the UI will have his/her certificate
+     * revoked.
+     */
     fun revokeUserCertificateButtonListener(view: View) {
         val userRepo = UserDataRepository.getInstance(Pair(applicationContext, resources))
         val blockRepo = BlockRepository.getInstance(Pair(applicationContext, resources))

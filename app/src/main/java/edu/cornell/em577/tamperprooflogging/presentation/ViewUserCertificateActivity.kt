@@ -8,6 +8,7 @@ import edu.cornell.em577.tamperprooflogging.R
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 import java.security.PublicKey
 
+/** Activity responsible for viewing all user certificates, either active or revoked. */
 class ViewUserCertificateActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

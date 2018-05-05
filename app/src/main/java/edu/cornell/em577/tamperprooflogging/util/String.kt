@@ -2,6 +2,10 @@ package edu.cornell.em577.tamperprooflogging.util
 
 private val HEX_CHARS = "0123456789ABCDEF"
 
+/**
+ * Converts the hex string to its corresponding ByteArray representation. Paired with
+ * ByteArray.toHex
+ */
 fun String.hexStringToByteArray() : ByteArray {
 
     val result = ByteArray(length / 2)

@@ -8,6 +8,7 @@ import edu.cornell.em577.tamperprooflogging.R
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 
+/** Activity responsible for adding a user to the device. */
 class AddUserActivity : AppCompatActivity() {
 
     private var adminPassword: String? = null
@@ -18,6 +19,10 @@ class AddUserActivity : AppCompatActivity() {
         adminPassword = intent.getStringExtra("AdminPassword")
     }
 
+    /**
+     * Listener to add a user to the User Repository upon pressing the addUserButton with the
+     * information supplied by the admin that has logged in.
+     */
     fun addUserButtonListener(view: View) {
         val identifierEditText = findViewById<EditText>(R.id.enterUserIdentifier)
         val locationEditText = findViewById<EditText>(R.id.enterUserLocation)

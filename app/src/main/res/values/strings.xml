@@ -32,9 +32,4 @@
     <string name="view_record_accesses">View Record Accesses</string>
     <string name="view_user_certificates">View User Certificates</string>
 
-    <!--Network String Constants-->
-    <string name="role">client</string>
-    <string name="server_ip_address">10.0.2.15</string>
-    <string name="server_port_num">8080</string>
-
 </resources>

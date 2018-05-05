@@ -8,6 +8,7 @@ data class Transaction(
     val content: String,
     val comment: String
 ) {
+    /** Type of transaction. */
     enum class TransactionType {
         CERTIFICATE,
         RECORD_ACCESS,
@@ -20,6 +21,7 @@ data class Transaction(
         private const val CONTENT = "content"
         private const val COMMENT = "comment"
 
+        /** Creates a transaction from a ProtocolMessageProto Transaction. */
         fun fromProto(protoTransaction: ProtocolMessageProto.Transaction): Transaction {
             return Transaction(
                 TransactionType.valueOf(protoTransaction.type),
@@ -28,6 +30,7 @@ data class Transaction(
             )
         }
 
+        /** Creates a transaction from a Json-formatted (created with toJson) transaction. */
         fun fromJson(properties: Map<String, Any>): Transaction {
             return Transaction(
                 TransactionType.valueOf(properties[TYPE] as String),
@@ -36,10 +39,15 @@ data class Transaction(
             )
         }
 
+        /**
+         * Generates a certificate transaction given the userId and his/her corresponding public
+         * key in hex string-format.
+         */
         fun generateCertificate(userId: String, hexPublicKey: String): Transaction {
             return Transaction(TransactionType.CERTIFICATE, userId, hexPublicKey)
         }
 
+        /** Generates a certificate revocation transaction given the userId to revoke. */
         fun generateRevocation(userIdToRevoke: String): Transaction {
             return Transaction(
                 TransactionType.REVOKE_CERTIFICATE,
@@ -48,6 +56,7 @@ data class Transaction(
             )
         }
 
+        /** Generates a proof-of-witness transaction given the userId of the witness. */
         fun generateProofOfWitness(userId: String): Transaction {
             return Transaction(
                 TransactionType.PROOF_OF_WITNESS,
@@ -57,6 +66,7 @@ data class Transaction(
         }
     }
 
+    /** Serializes this transaction to a ProtocolMessageProto Transaction */
     fun toProto(): ProtocolMessageProto.Transaction {
         return ProtocolMessageProto.Transaction.newBuilder()
             .setType(type.name)
@@ -65,6 +75,10 @@ data class Transaction(
             .build()
     }
 
+    /**
+     * Serializes this transaction to a Json-format compatible with Couchbase Mobile's document
+     * store.
+     * */
     fun toJson(): Map<String, Any> {
         val properties = HashMap<String, Any>()
         properties[TYPE] = type.toString()

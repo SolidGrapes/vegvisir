@@ -4,29 +4,32 @@ import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
+import edu.cornell.em577.tamperprooflogging.network.ByteStream
 import edu.cornell.em577.tamperprooflogging.protocol.exception.UnexpectedTerminationException
-import kotlinx.coroutines.experimental.CommonPool
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.channels.ArrayChannel
 import java.util.*
+import java.util.concurrent.LinkedBlockingQueue
 import kotlin.collections.ArrayList
 
 /** Protocol for merging a remote blockchain into the local blockchain */
 class MergeRemoteBlockChainProtocol(
+    private val byteStream: ByteStream,
+    private val endpointId: String,
     private val blockRepo: BlockRepository,
     private val userRepo: UserDataRepository,
     private val userPassword: String,
     private val localTimestamp: Long
-) {
+) : Runnable {
 
-    val responseChannel = ArrayChannel<ProtocolMessageProto.ProtocolMessage?>(1)
+    @Volatile
+    var completed = false
+
+    val responseChannel = LinkedBlockingQueue<ProtocolMessageProto.ProtocolMessage?>()
 
     /**
      * Retrieves and return the collection of all remote blocks to add, indexed on their cryptographic hashes, as well
      * as the cryptographic hashes of the new frontier set.
      */
-    private suspend fun getRemoteBlocksToAdd(
+    private fun getRemoteBlocksToAdd(
         currentRootBlock: SignedBlock,
         remoteRootBlock: SignedBlock
     ): Pair<HashMap<String, SignedBlock>, List<String>> {
@@ -68,7 +71,7 @@ class MergeRemoteBlockChainProtocol(
      * Populates the provided collection of blocks to add with the proof of witness blocks
      * Returns the new root node of the blockchain.
      */
-    private suspend fun addProofOfWitnessBlocks(
+    private fun addProofOfWitnessBlocks(
         blocksToAddByCryptoHash: HashMap<String, SignedBlock>,
         frontierHashes: List<String>,
         currentRootBlock: SignedBlock,
@@ -120,49 +123,53 @@ class MergeRemoteBlockChainProtocol(
         }
     }
 
-    fun execute(): Deferred<Unit> {
-        return async(CommonPool) {
-            val currentRootBlock = blockRepo.getRootBlock()
-            try {
-                val remoteRootBlock = getRemoteRootBlock()
-                if (remoteRootBlock.cryptoHash == currentRootBlock.cryptoHash) {
-                    return@async
-                }
-                val (blocksToAddByCryptoHash, frontierHashes) = getRemoteBlocksToAdd(
-                    currentRootBlock,
-                    remoteRootBlock
-                )
-                val root = addProofOfWitnessBlocks(
-                    blocksToAddByCryptoHash,
-                    frontierHashes,
-                    currentRootBlock,
-                    remoteRootBlock
-                )
-                val blocksToAdd = blocksToAddByCryptoHash.values.toList()
-                if (blockRepo.verifyBlocks(blocksToAdd)) {
-                    blockRepo.updateBlockChain(blocksToAdd, root)
-                }
-                val mergeCompleteMessage = ProtocolMessageProto.ProtocolMessage.newBuilder()
-                    .setType(ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE)
-                    .setNoBody(true)
-                    .build()
-                    .toByteArray()
-                // Send mergeCompleteMessage on outgoing connection.
-            } catch (ute: UnexpectedTerminationException) {
+    /**
+     * Runs the core block-merging algorithm, performing block validation and processing while
+     * doing so.
+     */
+    override fun run() {
+        val currentRootBlock = blockRepo.getRootBlock()
+        try {
+            val remoteRootBlock = getRemoteRootBlock()
+            if (remoteRootBlock.cryptoHash == currentRootBlock.cryptoHash) {
+                return
             }
-        }
+            val (blocksToAddByCryptoHash, frontierHashes) = getRemoteBlocksToAdd(
+                currentRootBlock,
+                remoteRootBlock
+            )
+            // Verify before adding proof of witness blocks.
+            val root = addProofOfWitnessBlocks(
+                blocksToAddByCryptoHash,
+                frontierHashes,
+                currentRootBlock,
+                remoteRootBlock
+            )
+            val blocksToAdd = blocksToAddByCryptoHash.values.toList()
+            if (blockRepo.verifyBlocks(blocksToAdd)) {
+                blockRepo.updateBlockChain(blocksToAdd, root)
+            }
+            val mergeCompleteMessage = ProtocolMessageProto.ProtocolMessage.newBuilder()
+                .setType(ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE)
+                .setNoBody(true)
+                .build()
+                .toByteArray()
+
+            byteStream.send(endpointId, mergeCompleteMessage)
+        } catch (ute: Exception) {}
     }
 
-    private suspend fun getRemoteRootBlock(): SignedBlock {
+    /** Fetch the remote endpoint's root block. */
+    private fun getRemoteRootBlock(): SignedBlock {
         val request = ProtocolMessageProto.ProtocolMessage.newBuilder()
             .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_REQUEST)
             .setNoBody(true)
             .build()
             .toByteArray()
-        // Send request on outgoing connection.
 
+        byteStream.send(endpointId, request)
         while (true) {
-            val response = responseChannel.receive()
+            val response = responseChannel.take()
             if (response == null) {
                 throw UnexpectedTerminationException("Network exception detected")
             } else if (response.type ==
@@ -176,7 +183,8 @@ class MergeRemoteBlockChainProtocol(
         }
     }
 
-    private suspend fun getRemoteBlocks(cryptoHashes: List<String>): List<SignedBlock> {
+    /** Fetch the remote endpoint's blocks given the blocks crypto hashes. */
+    private fun getRemoteBlocks(cryptoHashes: List<String>): List<SignedBlock> {
         val request = ProtocolMessageProto.ProtocolMessage.newBuilder()
             .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_REQUEST)
             .setGetRemoteBlocksRequest(
@@ -185,10 +193,10 @@ class MergeRemoteBlockChainProtocol(
                     .build()
             ).build()
             .toByteArray()
-        // Send request on outgoing connection.
 
+        byteStream.send(endpointId, request)
         while (true) {
-            val response = responseChannel.receive()
+            val response = responseChannel.take()
             if (response == null) {
                 throw UnexpectedTerminationException("Network exception detected")
             } else if (response.type ==
@@ -210,7 +218,8 @@ class MergeRemoteBlockChainProtocol(
         }
     }
 
-    private suspend fun getRemoteProofOfWitnessBlock(parentHashes: List<String>): SignedBlock {
+    /** Fetch the remote endpoint's proof of witness block given the parent hashes. */
+    private fun getRemoteProofOfWitnessBlock(parentHashes: List<String>): SignedBlock {
         val request = ProtocolMessageProto.ProtocolMessage.newBuilder()
             .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST)
             .setGetRemoteProofOfWitnessBlockRequest(
@@ -219,10 +228,10 @@ class MergeRemoteBlockChainProtocol(
                     .build()
             ).build()
             .toByteArray()
-        // Send request on outgoing connection.
 
+        byteStream.send(endpointId, request)
         while (true) {
-            val response = responseChannel.receive()
+            val response = responseChannel.take()
             if (response == null) {
                 throw UnexpectedTerminationException("Network exception detected")
             } else if (response.type ==
@@ -237,16 +246,17 @@ class MergeRemoteBlockChainProtocol(
         }
     }
 
-    private suspend fun getRemoteTimestamp(): Long {
+    /** Fetch the remote endpoint's timestamp. */
+    private fun getRemoteTimestamp(): Long {
         val request = ProtocolMessageProto.ProtocolMessage.newBuilder()
             .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_REQUEST)
             .setNoBody(true)
             .build()
             .toByteArray()
-        // Send request on outgoing connection.
 
+        byteStream.send(endpointId, request)
         while (true) {
-            val response = responseChannel.receive()
+            val response = responseChannel.take()
             if (response == null) {
                 throw UnexpectedTerminationException("Network exception detected")
             } else if (response.type ==

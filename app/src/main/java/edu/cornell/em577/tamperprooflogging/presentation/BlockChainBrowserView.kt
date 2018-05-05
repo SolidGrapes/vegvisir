@@ -13,6 +13,7 @@ import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import java.util.*
 import kotlin.math.pow
 
+/** Custom view for drawing the blockchain. */
 class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) : View(context, attributeSet) {
 
     /** A node in the directed acyclic graph of blocks that is fixed on a canvas */
@@ -42,7 +43,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) : View
         private const val BASE_Y = 100
     }
 
-    /** Maps blocks in the repository to canvas blocks */
+    /** Maps blocks in the repository to canvas blocks. */
     private fun blocksToCanvasBlocks(): HashMap<String, CanvasBlockNode.CanvasBlock> {
         val blockRepository = BlockRepository.getInstance(Pair(context, resources))
         val rootBlock = blockRepository.getRootBlock()
@@ -132,6 +133,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) : View
         }
     }
 
+    /** Draw the provided point on the provided canvas. */
     private fun drawNode(canvas: Canvas, point: Point) {
         paint.reset()
         paint.style = Paint.Style.FILL
@@ -139,10 +141,12 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) : View
         canvas.drawCircle(point.x.toFloat(), point.y.toFloat(), NODE_RADIUS.toFloat(), paint)
     }
 
+    /** Compute the distance between the provided points. */
     private fun getDistance(src: Point, dest: Point): Double {
         return Math.sqrt((src.x - dest.x).toDouble().pow(2) + (src.y - dest.y).toDouble().pow(2))
     }
 
+    /** Draw an arrowed edge between the two provided points on the canvas.  */
     private fun drawEdge(canvas: Canvas, src: Point, dest: Point) {
         paint.reset()
         edge.moveTo(src.x.toFloat(), src.y.toFloat())
@@ -185,6 +189,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) : View
         canvas.drawPath(rightArrowEdge, paint)
     }
 
+    /** Draw on the blockchain on the provided canvas. */
     override fun onDraw(canvas: Canvas) {
         paint.reset()
         edge.reset()
@@ -194,6 +199,7 @@ class BlockChainBrowserView(context: Context, attributeSet: AttributeSet) : View
         drawGraph(canvas)
     }
 
+    /** Retrieve the canvas block. */
     fun getCanvasBlock(xCoord: Int, yCoord: Int): SignedBlock? {
         val visited = HashSet<String>()
         val stack = ArrayDeque<CanvasBlockNode>(listOf(frontierCanvasBlockNode))

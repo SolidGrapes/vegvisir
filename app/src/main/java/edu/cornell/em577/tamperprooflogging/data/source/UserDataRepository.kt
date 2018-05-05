@@ -63,7 +63,7 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
     private val publicKeyByUserId = HashMap<String, PublicKey>()
 
     private val applicationResources = env.second
-    private var inRegistration: Boolean
+    private var inRegistration: Boolean = false
 
     init {
         val userDocument = userstore.getDocument(USER)
@@ -75,6 +75,7 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         return inRegistration
     }
 
+    /** Verify whether the password supplied is the administrator password. */
     fun authenticateAdmin(password: String): Boolean {
         val salt = getBytesFromRawRes(R.raw.ca_salt)
         val hashedPass = getBytesFromRawRes(R.raw.ca_hashed_password)
@@ -84,14 +85,17 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         return hashedPass contentEquals digest.digest()
     }
 
+    /** Return the admin name and location. */
     fun loadAdminMetaData(): Pair<String, String> {
         return Pair(ADMIN_NAME, ADMIN_LOCATION)
     }
 
+    /** Return the admin's public key in hex string-format. */
     fun loadAdminHexPublicKey(): String {
         return getBytesFromRawRes(R.raw.ca_public_key).toHex()
     }
 
+    /** Return the admin's private key given the admin's password. */
     fun loadAdminPrivateKey(password: String): PrivateKey {
         val salt = getBytesFromRawRes(R.raw.ca_salt)
         val secret = getSecretSpec(password, salt)
@@ -104,6 +108,7 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         return keyFactory.generatePrivate(pkcS8EncodedKeySpec)
     }
 
+    /** Verify that the password supplied is the password of the user on this device. */
     fun authenticateUser(password: String): Boolean {
         val properties = userstore.getDocument(USER).properties
         val userId = properties[USER_ID] as String
@@ -120,6 +125,7 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         return digest.digest() contentEquals hashedPass
     }
 
+    /** Return the name and location of the user on this device. */
     fun loadUserMetaData(): Pair<String, String> {
         val properties = userstore.getDocument(USER).properties
         val userId = properties[USER_ID] as String
@@ -127,11 +133,13 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         return Pair(userId, userLocation)
     }
 
+    /** Return the public key in hex string-format of the user on this device.  */
     fun loadUserHexPublicKey(): String {
         val properties = userstore.getDocument(USER).properties
         return properties[USER_PUBLIC_KEY] as String
     }
 
+    /** Return the private key of the user on this device given that user's password. */
     fun loadUserPrivateKey(password: String): PrivateKey {
         val properties = userstore.getDocument(USER).properties
         val salt = (properties[USER_SALT] as String).hexStringToByteArray()
@@ -220,16 +228,22 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         return SecretKeySpec(factory.generateSecret(spec).encoded, BASE_ENC_ALGO)
     }
 
+    /** Returns the bytes in the raw resource with the provided id. */
     private fun getBytesFromRawRes(id: Int): ByteArray {
         return IOUtils.toByteArray(applicationResources.openRawResource(id))
     }
 
+    /** Converts a hex string representation of a public key to a PublicKey object. */
     fun getPublicKeyFromHexString(hexPublicKey: String): PublicKey {
         val x509EncodedKeySpec = X509EncodedKeySpec(hexPublicKey.hexStringToByteArray())
         val keyFactory = KeyFactory.getInstance(UserDataRepository.SIG_KEYGEN_ALGO)
         return keyFactory.generatePublic(x509EncodedKeySpec)
     }
 
+    /**
+     * Bind the provided public key to the user with the provided userId and add the resulting
+     * certificate to the repository.
+     */
     fun addUserCertificate(userId: String, publicKey: PublicKey) {
         synchronized(userGroup) {
             userGroup.add(userId)
@@ -237,12 +251,17 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         }
     }
 
+    /** Remove the certificate of the user with the given userId from the repository. */
     fun removeUserCertificate(userId: String) {
         synchronized(userGroup) {
             userGroup.remove(userId)
         }
     }
 
+    /**
+     * Retrieve all certificates stored in the repository as well as the certificate's current
+     * status.
+     */
     fun getAllUserCertificates(): List<Triple<String, PublicKey, CertificateStatus>> {
         synchronized(userGroup) {
             val (currentSet, removedSet) = userGroup.toList()
@@ -259,10 +278,12 @@ class UserDataRepository private constructor(env: Pair<Context, Resources>) {
         }
     }
 
+    /** Return the public key of the admin. */
     fun getAdminPublicKey(): PublicKey? {
         return publicKeyByUserId[ADMIN_NAME]
     }
 
+    /** Return whether the supplied userId belongs to the admin. */
     fun isAdmin(userId: String): Boolean {
         return userId == ADMIN_NAME
     }

@@ -7,6 +7,7 @@ import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.R
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 
+/** Activity responsible for displaying the contents of a block on the blockchain. */
 class ViewBlockActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

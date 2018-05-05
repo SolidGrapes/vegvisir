@@ -64,6 +64,7 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
         populateRepos()
     }
 
+    /** Populates the record and user repositories with the data found in the blockchain. */
     private fun populateRepos() {
         val rootBlock = signedBlockByCryptoHash[ROOT]!!
         val stack = ArrayDeque<SignedBlock>(listOf(rootBlock))
@@ -77,6 +78,10 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
         }
     }
 
+    /**
+     * Populates the record and user repositories with the data found in the provided
+     * transactions.
+     */
     private fun populateReposWithTransactions(transactions: List<Transaction>) {
         for (transaction in transactions) {
             when (transaction.type) {
@@ -153,13 +158,14 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
         return false
     }
 
+    /** Add the specified block to the persistent and cache blockstores. */
     private fun addBlock(block: SignedBlock) {
         signedBlockByCryptoHash[block.cryptoHash] = block
         val document = blockstore.getDocument(block.cryptoHash)
         document.putProperties(block.toJson())
     }
 
-    /** Update the signed root block in the repository */
+    /** Update the signed root block in the persistent and cache blockstores. */
     private fun updateRootBlock(signedRootBlock: SignedBlock) {
         signedBlockByCryptoHash[ROOT] = signedRootBlock
         val rootDocument = blockstore.getDocument(ROOT)
@@ -169,13 +175,18 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     }
 
 
-    /** Indicate to the repository that a remote data exchange is ongoing */
+    /** Indicate to the repository that a remote data exchange is ongoing. */
     fun beginExchange() {
         while (!isUpdating.compareAndSet(false, true)) {
             // Spin-lock on flag
         }
     }
 
+    /**
+     * Verifies the provided blocks to ensure that each block is signed by a user that was issued
+     * a certificate by the admin. Also verifies that each provided block did not descend from a
+     * certificate revocation block that revoked the certificate of the user that signed that block.
+     */
     fun verifyBlocks(blocksToVerify: List<SignedBlock>): Boolean {
         val userCerts = HashMap<String, PublicKey>()
 
@@ -209,6 +220,8 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
                 return false
             }
         }
+        // Add verification that each block to be added did not descend from a revocation block
+        // that revoked the certificate of the user that signed that block.
         return true
     }
 

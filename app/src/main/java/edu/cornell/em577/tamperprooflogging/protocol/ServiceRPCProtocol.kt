@@ -5,51 +5,50 @@ import edu.cornell.em577.tamperprooflogging.data.exception.SignedBlockNotFoundEx
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
-import edu.cornell.em577.tamperprooflogging.protocol.exception.BadMessageException
-import edu.cornell.em577.tamperprooflogging.protocol.exception.UnexpectedTerminationException
-import kotlinx.coroutines.experimental.CommonPool
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.channels.ArrayChannel
+import edu.cornell.em577.tamperprooflogging.network.ByteStream
+import java.util.concurrent.LinkedBlockingQueue
 
 /** Protocol for servicing remote procedure calls made by the remote endpoint */
 class ServiceRPCProtocol(
+    private val byteStream: ByteStream,
+    private val endpointId: String,
     private val blockRepo: BlockRepository,
     private val userRepo: UserDataRepository,
     private val userPassword: String,
     private val localTimestamp: Long
-) {
-    val requestChannel = ArrayChannel<ProtocolMessageProto.ProtocolMessage?>(3)
+) : Runnable {
+    val requestChannel = LinkedBlockingQueue<ProtocolMessageProto.ProtocolMessage?>()
 
-    fun execute(): Deferred<Unit> {
-        return async(CommonPool) {
-            listener@ while (true) {
-                try {
-                    val request = requestChannel.receive()
-                    if (request == null) {
-                        break
-                    } else {
-                        when (request.type) {
-                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_REQUEST ->
-                                serviceGetRemoteRootBlock()
-                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_REQUEST ->
-                                serviceGetRemoteBlocks(request.getRemoteBlocksRequest.cryptoHashesList)
-                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST ->
-                                serviceGetRemoteProofOfWitnessBlock(request.getRemoteProofOfWitnessBlockRequest.parentHashesList)
-                            ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_REQUEST ->
-                                serviceGetRemoteTimestamp()
-                            else -> continue@listener
-                        }
+    /**
+     * Listens for messages from the dispatcher, services the requests and sends the response to
+     * the remote endpoint.
+     */
+    override fun run() {
+        listener@ while (true) {
+            try {
+                val request = requestChannel.take()
+                if (request == null) {
+                    break
+                } else {
+                    when (request.type) {
+                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_REQUEST ->
+                            serviceGetRemoteRootBlock()
+                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_REQUEST ->
+                            serviceGetRemoteBlocks(request.getRemoteBlocksRequest.cryptoHashesList)
+                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST ->
+                            serviceGetRemoteProofOfWitnessBlock(request.getRemoteProofOfWitnessBlockRequest.parentHashesList)
+                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_REQUEST ->
+                            serviceGetRemoteTimestamp()
+                        else -> continue@listener
                     }
-                } catch (ute: UnexpectedTerminationException) {
-                    break
-                } catch (bme: BadMessageException) {
-                    break
                 }
+            } catch (e: Exception) {
+                break
             }
         }
     }
 
+    /** Services a request to fetch the local root block. */
     private fun serviceGetRemoteRootBlock() {
         try {
             val rootBlock = blockRepo.getRootBlock()
@@ -62,7 +61,8 @@ class ServiceRPCProtocol(
                 .build()
                 .toByteArray()
 
-            // Send response on outgoing connection.
+            
+            byteStream.send(endpointId, response)
         } catch (sbnfe: SignedBlockNotFoundException) {
             val response = ProtocolMessageProto.ProtocolMessage.newBuilder()
                 .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_RESPONSE)
@@ -73,10 +73,11 @@ class ServiceRPCProtocol(
                 .build()
                 .toByteArray()
 
-            // Send response on outgoing connection.
+            byteStream.send(endpointId, response)
         }
     }
 
+    /** Services a request to fetch the local blocks given the crypto hashes of the blocks. */
     private fun serviceGetRemoteBlocks(cryptoHashes: List<String>) {
         try {
             val blocks = blockRepo.getBlocks(cryptoHashes)
@@ -88,8 +89,8 @@ class ServiceRPCProtocol(
                         .build()
                 ).build()
                 .toByteArray()
-
-            // Send response on outgoing connection.
+            
+            byteStream.send(endpointId, response)
         } catch (sbnfe: SignedBlockNotFoundException) {
             val response = ProtocolMessageProto.ProtocolMessage.newBuilder()
                 .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_RESPONSE)
@@ -99,11 +100,12 @@ class ServiceRPCProtocol(
                         .build()
                 ).build()
                 .toByteArray()
-
-            // Send response on outgoing connection.
+            
+            byteStream.send(endpointId, response)
         }
     }
 
+    /** Services a request to fetch a local proof of witness block given the parent hashes. */
     private fun serviceGetRemoteProofOfWitnessBlock(parentHashes: List<String>) {
         val proofOfWitness = SignedBlock.generateProofOfWitness(
             userRepo, userPassword, parentHashes, localTimestamp)
@@ -115,10 +117,11 @@ class ServiceRPCProtocol(
                     .build()
             ).build()
             .toByteArray()
-
-        // Send response on outgoing connection.
+        
+        byteStream.send(endpointId, response)
     }
 
+    /** Services a request to fetch the local timestamp. */
     private fun serviceGetRemoteTimestamp() {
         val response = ProtocolMessageProto.ProtocolMessage.newBuilder()
             .setType(ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_RESPONSE)
@@ -129,6 +132,6 @@ class ServiceRPCProtocol(
             ).build()
             .toByteArray()
 
-        // Send response on outgoing connection.
+        byteStream.send(endpointId, response)
     }
 }

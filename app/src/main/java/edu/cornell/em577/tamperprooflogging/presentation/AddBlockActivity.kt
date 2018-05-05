@@ -1,5 +1,6 @@
 package edu.cornell.em577.tamperprooflogging.presentation
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
@@ -13,10 +14,8 @@ import edu.cornell.em577.tamperprooflogging.data.exception.PermissionNotFoundExc
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import org.jetbrains.anko.textColor
-import android.content.Intent
 
-
-
+/** Activity responsible for adding blocks. */
 class AddBlockActivity : AppCompatActivity() {
 
     private val transactionList = ArrayList<Pair<String, String>>()
@@ -35,6 +34,10 @@ class AddBlockActivity : AppCompatActivity() {
         userPassword = intent.getStringExtra("UserPassword")
     }
 
+    /**
+     * Listener to create a signed block based on the user password and meta-data as well as the
+     * user supplied transactions upon pressing the createBlockButton.
+     */
     fun createBlockButtonListener(view: View) {
         val blockRepo = BlockRepository.getInstance(Pair(applicationContext, resources))
         val transactionsToAdd = transactionList.map {
@@ -61,6 +64,7 @@ class AddBlockActivity : AppCompatActivity() {
         }
     }
 
+    /** Listener to add a transaction to the UI upon pressing the addTransactionButton. */
     fun addTransactionButtonListener(view: View) {
         val content = findViewById<EditText>(R.id.enterContent).text.toString()
         val comment = findViewById<EditText>(R.id.enterComment).text.toString()

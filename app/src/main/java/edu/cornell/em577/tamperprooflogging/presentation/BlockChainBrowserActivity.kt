@@ -10,11 +10,13 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import edu.cornell.em577.tamperprooflogging.R
 
+/** Activity for presenting the blockchain to the user. */
 class BlockChainBrowserActivity : AppCompatActivity() {
 
     private var detector: GestureDetectorCompat? = null
     var browserView: BlockChainBrowserView? = null
 
+    /** Listens for user gestures on the canvas. */
     class BlockChainBrowserGestureListener(
         private val context: Context,
         private val bundle: Bundle?,
@@ -39,7 +41,6 @@ class BlockChainBrowserActivity : AppCompatActivity() {
             return false
         }
     }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_block_chain_browser)
@@ -49,6 +50,7 @@ class BlockChainBrowserActivity : AppCompatActivity() {
         )
     }
 
+    /** Shows the contents of the block that was tapped in another activity. */
     override fun onTouchEvent(event: MotionEvent?): Boolean {
         detector?.onTouchEvent(event)
         return super.onTouchEvent(event)

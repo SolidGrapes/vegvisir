@@ -8,6 +8,7 @@ import edu.cornell.em577.tamperprooflogging.R
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.data.source.RecordRepository
 
+/** Activity responsible for viewing all record accesses made. */
 class ViewRecordAccessActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

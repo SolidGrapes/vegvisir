@@ -25,6 +25,7 @@ data class UnsignedBlock(
         private const val PARENT_HASHES = "parentHashes"
         private const val TRANSACTIONS = "transactions"
 
+        /** Creates an unsigned block from a ProtocolMessageProto UnsignedBlock. */
         fun fromProto(protoUnsignedBlock: ProtocolMessageProto.UnsignedBlock): UnsignedBlock {
             return UnsignedBlock(
                 protoUnsignedBlock.userId,
@@ -34,6 +35,7 @@ data class UnsignedBlock(
                 protoUnsignedBlock.transactionsList.map { Transaction.fromProto(it) })
         }
 
+        /** Creates a unsigned block from a Json-formatted (created with toJson) unsigned block. */
         fun fromJson(properties: Map<String, Any>): UnsignedBlock {
             return UnsignedBlock(
                 properties[USER_ID] as String,
@@ -44,6 +46,10 @@ data class UnsignedBlock(
             )
         }
 
+        /**
+         * Generates an unsigned admin certificate block given the UserDataRepository singleton
+         * object. Assumes the generated block will be used as the genesis block of the blockchain.
+         */
         fun generateAdminCertificate(userRepo: UserDataRepository): UnsignedBlock {
             val (adminId, adminLocation) = userRepo.loadAdminMetaData()
             val hexPublicKey = userRepo.loadAdminHexPublicKey()
@@ -56,6 +62,10 @@ data class UnsignedBlock(
             )
         }
 
+        /**
+         * Generates an unsigned user certificate, provided the parent block hashes and
+         * UserDataRepository singleton object.
+         */
         fun generateUserCertificate(
             userRepo: UserDataRepository,
             parentHashes: List<String>
@@ -72,6 +82,10 @@ data class UnsignedBlock(
             )
         }
 
+        /**
+         * Generates an unsigned proof of witness block given the parent hash blocks,
+         * UserDataRepository singleton object and the local timestamp.
+         */
         fun generateProofOfWitness(
             userRepo: UserDataRepository,
             parentHashes: List<String>,
@@ -88,6 +102,7 @@ data class UnsignedBlock(
         }
     }
 
+    /** Serializes this unsigned block to a ProtocolMessageProto UnsignedBlock. */
     fun toProto(): ProtocolMessageProto.UnsignedBlock {
         return ProtocolMessageProto.UnsignedBlock.newBuilder()
             .setUserId(userId)
@@ -98,6 +113,10 @@ data class UnsignedBlock(
             .build()
     }
 
+    /**
+     * Serializes this unsigned block to a Json format compatible with Couchbase Mobile's document
+     * store.
+     */
     fun toJson(): HashMap<String, Any> {
         val properties = HashMap<String, Any>()
         properties[USER_ID] = userId
@@ -108,6 +127,7 @@ data class UnsignedBlock(
         return properties
     }
 
+    /** Sign this unsigned block with the provided private key. */
     fun sign(privateKey: PrivateKey): String {
         val sig = Signature.getInstance("SHA256withRSA")
         sig.initSign(privateKey)
