@@ -61,6 +61,8 @@ message ProtocolMessage {
         GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST = 6;
         GET_REMOTE_TIMESTAMP_REQUEST = 7;
         MERGE_COMPLETE = 8;
+        MERGE_COMPLETE_ACK = 9;
+        MERGE_INTERRUPTED = 10;
     }
     required MessageType type = 1;
 

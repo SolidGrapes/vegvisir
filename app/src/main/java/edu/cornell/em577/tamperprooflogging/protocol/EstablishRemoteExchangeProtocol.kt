@@ -2,11 +2,13 @@ package edu.cornell.em577.tamperprooflogging.protocol
 
 import android.content.Context
 import android.content.res.Resources
+import android.util.Log
 import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.data.source.BlockRepository
 import edu.cornell.em577.tamperprooflogging.data.source.UserDataRepository
 import edu.cornell.em577.tamperprooflogging.network.ByteStream
 import edu.cornell.em577.tamperprooflogging.protocol.exception.BadMessageException
+import edu.cornell.em577.tamperprooflogging.protocol.exception.UnexpectedTerminationException
 import edu.cornell.em577.tamperprooflogging.util.SingletonHolder
 import java.util.*
 
@@ -38,7 +40,7 @@ class EstablishRemoteExchangeProtocol private constructor(env: Triple<Context, R
         if (!isRunning) {
             isRunning = true
             byteStream.create()
-            Thread(this).run()
+            Thread(this).start()
         }
     }
 
@@ -49,8 +51,9 @@ class EstablishRemoteExchangeProtocol private constructor(env: Triple<Context, R
      */
     override fun run() {
         while (true) {
+            Log.d("Checking", "Establishing Connection")
             val endpointId = byteStream.establishConnection()
-
+            Log.d("Checking", "Established Connection")
             blockRepo.beginExchange()
             val localTimestamp = Calendar.getInstance().timeInMillis
 
@@ -75,6 +78,7 @@ class EstablishRemoteExchangeProtocol private constructor(env: Triple<Context, R
             mergeResult.start()
 
             var remoteCompleted = false
+            var localCompleted = false
             while (true) {
                 try {
                     val incomingMessage = byteStream.recv()
@@ -82,30 +86,51 @@ class EstablishRemoteExchangeProtocol private constructor(env: Triple<Context, R
                     when (parsedMessage.type) {
                         ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_REQUEST,
                         ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_REQUEST,
-                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST ,
-                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_REQUEST->
+                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST,
+                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_REQUEST ->
                             serviceRPCProtocol.requestChannel.put(parsedMessage)
                         ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_RESPONSE,
                         ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_RESPONSE,
                         ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_RESPONSE,
-                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_RESPONSE->
+                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_RESPONSE ->
                             mergeRemoteBlockChainProtocol.responseChannel.put(parsedMessage)
+                        ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_INTERRUPTED -> {
+                            throw UnexpectedTerminationException("Unexpected network error during merging")
+                        }
                         ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE -> {
-                            serviceRPCProtocol.requestChannel.put(null)
+                            val mergeCompleteAckMessage = ProtocolMessageProto.ProtocolMessage.newBuilder()
+                                .setType(ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE_ACK)
+                                .setNoBody(true)
+                                .build()
+                                .toByteArray()
+                            byteStream.send(endpointId, mergeCompleteAckMessage)
+                            serviceRPCProtocol.requestChannel.put(parsedMessage)
                             remoteCompleted = true
+                        }
+                        ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE_ACK -> {
+                            localCompleted = true
                         }
                         else -> throw BadMessageException("Improperly formatted message received")
                     }
 
-                    if (remoteCompleted && mergeRemoteBlockChainProtocol.completed) {
+                    if (remoteCompleted && localCompleted) {
+                        if (!mergeRemoteBlockChainProtocol.completed) {
+                            throw UnexpectedTerminationException("Endpoint sent Merge Complete Ack when local merge complete did not complete.")
+                        }
+                        Log.d("Checking", "Completed Merging on both ends")
                         break
                     }
                 } catch (e: Exception) {
-                    mergeRemoteBlockChainProtocol.responseChannel.put(null)
-                    serviceRPCProtocol.requestChannel.put(null)
+                    val mergeInterruptedMessage = ProtocolMessageProto.ProtocolMessage.newBuilder()
+                        .setType(ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_INTERRUPTED)
+                        .setNoBody(true)
+                        .build()
+                    mergeRemoteBlockChainProtocol.responseChannel.put(mergeInterruptedMessage)
+                    serviceRPCProtocol.requestChannel.put(mergeInterruptedMessage)
                     break
                 }
             }
+
             mergeResult.join()
             serviceResult.join()
             blockRepo.endExchange()

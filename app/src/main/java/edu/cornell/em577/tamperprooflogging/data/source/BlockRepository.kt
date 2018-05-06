@@ -2,6 +2,7 @@ package edu.cornell.em577.tamperprooflogging.data.source
 
 import android.content.Context
 import android.content.res.Resources
+import android.util.Log
 import com.couchbase.lite.Manager
 import com.couchbase.lite.android.AndroidContext
 import edu.cornell.em577.tamperprooflogging.data.exception.PermissionNotFoundException
@@ -46,6 +47,7 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
         if (signedBlockByCryptoHash[ROOT] != null) {
             populateRepos()
         }
+        Log.d("Checking", "Size of blockstore is ${signedBlockByCryptoHash.size}")
     }
 
     /** Bootstrap the block repository */
@@ -190,13 +192,16 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     fun verifyBlocks(blocksToVerifyByCryptoHash: HashMap<String, SignedBlock>): Boolean {
         val blocksToVerify = blocksToVerifyByCryptoHash.values.toList()
         val existingCerts = getExistingUserCerts()
+        Log.d("Checking", "Extracting Certificate Blocks")
         val (extractedCerts, extractedCertBlocks) = extractUserCert(blocksToVerify)
+        Log.d("Checking", "Verifying Certificate Blocks")
         if (!verifyUserCertBlocks(extractedCertBlocks)) {
             return false
         }
         val userCerts = HashMap<String, PublicKey>()
         existingCerts.forEach({ userCerts[it.key] = it.value })
         extractedCerts.forEach({ userCerts[it.key] = it.value })
+        Log.d("Checking", "Verifying Signatures")
         if (!verifySignaturesOfBlocks(blocksToVerify, userCerts)) {
             return false
         }

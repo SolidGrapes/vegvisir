@@ -24,6 +24,7 @@ data class UnsignedBlock(
         private const val LOCATION = "location"
         private const val PARENT_HASHES = "parentHashes"
         private const val TRANSACTIONS = "transactions"
+        private const val TIME_OF_ORIGIN = 0L
 
         /** Creates an unsigned block from a ProtocolMessageProto UnsignedBlock. */
         fun fromProto(protoUnsignedBlock: ProtocolMessageProto.UnsignedBlock): UnsignedBlock {
@@ -55,7 +56,7 @@ data class UnsignedBlock(
             val hexPublicKey = userRepo.loadAdminHexPublicKey()
             return UnsignedBlock(
                 adminId,
-                Calendar.getInstance().timeInMillis,
+                TIME_OF_ORIGIN,
                 adminLocation,
                 listOf(),
                 listOf(Transaction.generateCertificate(adminId, hexPublicKey))

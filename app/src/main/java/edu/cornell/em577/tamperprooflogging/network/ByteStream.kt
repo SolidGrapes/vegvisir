@@ -1,6 +1,7 @@
 package edu.cornell.em577.tamperprooflogging.network
 
 import android.content.Context
+import android.util.Log
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
 import com.google.android.gms.nearby.connection.ConnectionInfo
@@ -14,6 +15,7 @@ import com.google.android.gms.nearby.connection.Payload
 import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
+import com.vegvisir.data.ProtocolMessageProto
 import edu.cornell.em577.tamperprooflogging.util.SingletonHolder
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -64,6 +66,7 @@ class ByteStream private constructor(env: Pair<Context, String>) {
      * Identifier of the device we are currently in connection with. Null if we are not connected to
      * any device.
      */
+    @Volatile
     private var mEndpointId: Endpoint? = null
 
     /** Current state of the connection. */
@@ -90,9 +93,9 @@ class ByteStream private constructor(env: Pair<Context, String>) {
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
             if (mEndpointId == null) {
                 if (result.status.isSuccess) {
+                    setState(State.CONNECTED)
                     mEndpointId = Endpoint(endpointId)
                     mEstablishedConnection.put(mEndpointId)
-                    setState(State.CONNECTED)
                 } else {
                     setState(State.SEARCHING)
                 }
@@ -102,6 +105,12 @@ class ByteStream private constructor(env: Pair<Context, String>) {
         override fun onDisconnected(endpointId: String) {
             if (endpointId == mEndpointId?.id) {
                 setState(State.SEARCHING)
+                val mergeInterruptedMessage = ProtocolMessageProto.ProtocolMessage.newBuilder()
+                    .setType(ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_INTERRUPTED)
+                    .setNoBody(true)
+                    .build()
+                    .toByteArray()
+                mRecvBuffer.put(mergeInterruptedMessage)
             }
         }
     }
@@ -161,7 +170,6 @@ class ByteStream private constructor(env: Pair<Context, String>) {
     private fun stopAllEndpoints() {
         mEndpointId = null
         mEstablishedConnection.clear()
-        mRecvBuffer.clear()
         synchronized(mConnectionsClient) {
             mConnectionsClient.stopAllEndpoints()
         }
@@ -196,6 +204,7 @@ class ByteStream private constructor(env: Pair<Context, String>) {
 
     /** Block until a connection has been established and returns the endpointId. */
     fun establishConnection(): String {
+        mRecvBuffer.clear()
         return mEstablishedConnection.take().id
     }
 

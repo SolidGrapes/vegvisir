@@ -17,7 +17,7 @@ class ServiceRPCProtocol(
     private val userPassword: String,
     private val localTimestamp: Long
 ) : Runnable {
-    val requestChannel = LinkedBlockingQueue<ProtocolMessageProto.ProtocolMessage?>()
+    val requestChannel = LinkedBlockingQueue<ProtocolMessageProto.ProtocolMessage>()
 
     /**
      * Listens for messages from the dispatcher, services the requests and sends the response to
@@ -27,20 +27,18 @@ class ServiceRPCProtocol(
         listener@ while (true) {
             try {
                 val request = requestChannel.take()
-                if (request == null) {
-                    break
-                } else {
-                    when (request.type) {
-                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_REQUEST ->
-                            serviceGetRemoteRootBlock()
-                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_REQUEST ->
-                            serviceGetRemoteBlocks(request.getRemoteBlocksRequest.cryptoHashesList)
-                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST ->
-                            serviceGetRemoteProofOfWitnessBlock(request.getRemoteProofOfWitnessBlockRequest.parentHashesList)
-                        ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_REQUEST ->
-                            serviceGetRemoteTimestamp()
-                        else -> continue@listener
-                    }
+                when (request.type) {
+                    ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_ROOT_BLOCK_REQUEST ->
+                        serviceGetRemoteRootBlock()
+                    ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_BLOCKS_REQUEST ->
+                        serviceGetRemoteBlocks(request.getRemoteBlocksRequest.cryptoHashesList)
+                    ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_PROOF_OF_WITNESS_BLOCK_REQUEST ->
+                        serviceGetRemoteProofOfWitnessBlock(request.getRemoteProofOfWitnessBlockRequest.parentHashesList)
+                    ProtocolMessageProto.ProtocolMessage.MessageType.GET_REMOTE_TIMESTAMP_REQUEST ->
+                        serviceGetRemoteTimestamp()
+                    ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_COMPLETE,
+                    ProtocolMessageProto.ProtocolMessage.MessageType.MERGE_INTERRUPTED -> break@listener
+                    else -> continue@listener
                 }
             } catch (e: Exception) {
                 break
