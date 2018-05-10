@@ -1,6 +1,7 @@
 package edu.cornell.em577.tamperprooflogging.network
 
 import android.content.Context
+import android.os.Handler
 import android.util.Log
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
@@ -25,7 +26,7 @@ import java.util.concurrent.LinkedBlockingQueue
  * receive data over the network, where each local send call is paired with a corresponding
  * remote receive call.
  */
-class ByteStream private constructor(env: Pair<Context, String>) {
+class ByteStream private constructor(private val env: Pair<Context, String>) {
 
     companion object :
         SingletonHolder<ByteStream, Pair<Context, String>>(::ByteStream) {
@@ -53,11 +54,10 @@ class ByteStream private constructor(env: Pair<Context, String>) {
         }
     }
 
-    val context = env.first
     val userId = env.second
 
     /** Our handler to Nearby Connections. Shared object between UI thread and background threads */
-    private val mConnectionsClient: ConnectionsClient = Nearby.getConnectionsClient(context)
+    private val mConnectionsClient: ConnectionsClient = Nearby.getConnectionsClient(env.first)
 
     /** The device we are currently connected to. */
     private val mEstablishedConnection = LinkedBlockingQueue<Endpoint>(1)
@@ -218,5 +218,12 @@ class ByteStream private constructor(env: Pair<Context, String>) {
     /** Blocking call that returns the byte array sent by the corresponding remote send call. */
     fun recv(): ByteArray {
         return mRecvBuffer.take()
+    }
+
+    fun close() {
+        val mainHandler = Handler(env.first.mainLooper)
+        mainHandler.post({
+            setState(State.SEARCHING)
+        })
     }
 }

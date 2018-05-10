@@ -133,6 +133,7 @@ class EstablishRemoteExchangeProtocol private constructor(env: Triple<Context, R
 
             mergeResult.join()
             serviceResult.join()
+            byteStream.close()
             blockRepo.endExchange()
             Thread.sleep(WAIT_TIME_IN_SECONDS * SECOND_IN_MILLI)
         }

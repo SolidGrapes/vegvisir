@@ -1,10 +1,16 @@
 package edu.cornell.em577.tamperprooflogging.data.source
 
+import android.app.Notification
+import android.app.NotificationManager
 import android.content.Context
 import android.content.res.Resources
+import android.os.Handler
+import android.support.v4.app.NotificationCompat
+import android.support.v4.app.NotificationManagerCompat
 import android.util.Log
 import com.couchbase.lite.Manager
 import com.couchbase.lite.android.AndroidContext
+import edu.cornell.em577.tamperprooflogging.R
 import edu.cornell.em577.tamperprooflogging.data.exception.PermissionNotFoundException
 import edu.cornell.em577.tamperprooflogging.data.exception.SignedBlockNotFoundException
 import edu.cornell.em577.tamperprooflogging.data.model.SignedBlock
@@ -17,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 
 /** Repository interfacing with the storage layer to store/retrieve blocks on the blockchain */
-class BlockRepository private constructor(env: Pair<Context, Resources>) {
+class BlockRepository private constructor(private val env: Pair<Context, Resources>) {
 
     companion object :
         SingletonHolder<BlockRepository, Pair<Context, Resources>>(::BlockRepository) {
@@ -176,12 +182,29 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
         rootDocument.putProperties(properties)
     }
 
+    /** Notify user of an event through a notification popup on the UI. */
+    private fun notifyUser(contentTitle: String, contentText: String, msgId: Int) {
+        // For API level 25 and under CHANNEL_ID is ignored. Otherwise look into creating a
+        // notification channel.
+        val mBuilder = NotificationCompat.Builder(env.first, "STUB")
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setContentTitle(contentTitle)
+            .setContentText(contentText)
+            .setDefaults(Notification.DEFAULT_ALL)
+            .setPriority(NotificationManager.IMPORTANCE_HIGH)
+        val notificationManager = NotificationManagerCompat.from(env.first)
+        val mainHandler = Handler(env.first.mainLooper)
+        mainHandler.post({
+            notificationManager.notify(msgId, mBuilder.build())
+        })
+    }
 
     /** Indicate to the repository that a remote data exchange is ongoing. */
     fun beginExchange() {
         while (!isUpdating.compareAndSet(false, true)) {
             // Spin-lock on flag
         }
+        notifyUser("Merge Status", "Merge In Progress", 0)
     }
 
     /**
@@ -312,6 +335,7 @@ class BlockRepository private constructor(env: Pair<Context, Resources>) {
     /** Indicate to the repository that a remote data exchange has completed */
     fun endExchange() {
         isUpdating.set(false)
+        notifyUser("Merge Status", "Merge Completed", 1)
     }
 
     /** Check whether the repository contains a signed block with the given crypto hash */
