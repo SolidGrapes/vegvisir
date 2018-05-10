@@ -29,7 +29,18 @@
     <string name="crypto_hash">Cryptographic Hash:</string>
 
     <string name="view_blockchain">View Blockchain</string>
-    <string name="view_record_accesses">View Record Accesses</string>
+    <string name="view_record_requests">View Record Requests</string>
     <string name="view_user_certificates">View User Certificates</string>
 
+    <string name="request_records">Request Records</string>
+    <string name="view_records">View Records</string>
+
+    <string name="enter_record_id">Enter Record ID</string>
+    <string name="add_record_id">Add Record ID</string>
+
+    <string name="requesting_records_now">Requesting Records</string>
+    <string name="added_record_id_to_request">Add Record Id To Request</string>
+    <string name="no_such_record_with_provided_id_on_this_device">No Such Record With The Provided Id On This Device</string>
+    <string name="record_id_must_by_a_number">Record Id Must Be A Number</string>
+    <string name="previously_requested_record_with_provided_id">Previously Requested A Record With The Provided Id</string>
 </resources>

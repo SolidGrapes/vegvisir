@@ -11,7 +11,7 @@ data class Transaction(
     /** Type of transaction. */
     enum class TransactionType {
         CERTIFICATE,
-        RECORD_ACCESS,
+        RECORD_REQUEST,
         PROOF_OF_WITNESS,
         REVOKE_CERTIFICATE
     }

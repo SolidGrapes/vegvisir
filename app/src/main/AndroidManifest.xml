@@ -27,10 +27,13 @@
         <activity android:name=".presentation.UserPanelActivity"/>
         <activity android:name=".presentation.BlockChainBrowserActivity"/>
         <activity android:name=".presentation.ViewBlockActivity"/>
-        <activity android:name=".presentation.ViewRecordAccessActivity"/>
+        <activity android:name=".presentation.ViewRecordRequestActivity"/>
         <activity android:name=".presentation.ViewUserCertificateActivity"/>
         <activity android:name=".presentation.RevokeUserActivity"/>
         <activity android:name=".presentation.AddBlockActivity"/>
         <activity android:name=".presentation.AddUserActivity"/>
+        <activity android:name=".presentation.RequestRecordsActivity"/>
+        <activity android:name=".presentation.ViewRecordsActivity"/>
+        <activity android:name=".presentation.ViewRecordByIdActivity"/>
     </application>
 </manifest>

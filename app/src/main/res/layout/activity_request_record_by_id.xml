@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android = "http://schemas.android.com/apk/res/android"
+    xmlns:tools = "http://schemas.android.com/tools"
+    android:layout_width = "match_parent"
+    android:layout_height = "match_parent"
+    android:paddingStart = "32dp"
+    android:paddingLeft = "32dp"
+    android:paddingRight = "32dp"
+    android:paddingTop = "8dp"
+    android:paddingBottom = "8dp"
+    tools:context="edu.cornell.em577.tamperprooflogging.presentation.ViewRecordByIdActivity">
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="276dp"
+        android:layout_height="56dp"
+        android:layout_centerInParent="true"
+        android:gravity="center"
+        android:visibility="invisible"
+        tools:layout_editor_absoluteX="55dp"
+        tools:layout_editor_absoluteY="482dp" />
+</RelativeLayout>

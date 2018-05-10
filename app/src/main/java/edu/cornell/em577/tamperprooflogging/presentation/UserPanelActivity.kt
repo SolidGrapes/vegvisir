@@ -21,6 +21,25 @@ class UserPanelActivity : AppCompatActivity() {
     }
 
     /**
+     * Listener that triggers when the requestRecordsButton is pressed. Takes the user to the
+     * RequestRecordsActivity.
+     */
+    fun requestRecordsButtonListener(view: View) {
+        val intent = Intent(this, RequestRecordsActivity::class.java)
+        intent.putExtra("UserPassword", userPassword!!)
+        startActivity(intent)
+    }
+
+    /**
+     * Listener that triggers when the viewRecordsButton is pressed. Takes the user to the
+     * RequestRecordsActivity.
+     */
+    fun viewRecordsButtonListener(view: View) {
+        val intent = Intent(this, ViewRecordsActivity::class.java)
+        startActivity(intent)
+    }
+
+    /**
      * Listener that triggers when the addBlockButton is pressed. Takes the user to the
      * AddBlockActivity.
      */
@@ -40,11 +59,11 @@ class UserPanelActivity : AppCompatActivity() {
     }
 
     /**
-     * Listener that triggers when the viewRecordAccessButton is pressed. Takes the user to the
-     * ViewRecordAccessActivity.
+     * Listener that triggers when the viewRecordRequestButton is pressed. Takes the user to the
+     * ViewRecordRequestActivity.
      */
-    fun viewRecordAccessButtonListener(view: View) {
-        val intent = Intent(this, ViewRecordAccessActivity::class.java)
+    fun viewRecordRequestButtonListener(view: View) {
+        val intent = Intent(this, ViewRecordRequestActivity::class.java)
         startActivity(intent)
     }
 

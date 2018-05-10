@@ -8,21 +8,19 @@ import edu.cornell.em577.tamperprooflogging.R
 import edu.cornell.em577.tamperprooflogging.data.model.Transaction
 import edu.cornell.em577.tamperprooflogging.data.source.RecordRepository
 
-/** Activity responsible for viewing all record accesses made. */
-class ViewRecordAccessActivity : AppCompatActivity() {
+/** Activity responsible for viewing all record requests made. */
+class ViewRecordRequestActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_view_record_access)
+        setContentView(R.layout.activity_view_record_request)
 
         val recordListView = findViewById<ListView>(R.id.recordList)
-
         val recordRepo = RecordRepository.getInstance(Pair(applicationContext, resources))
-
         val adapter = ArrayAdapter<Transaction>(
-            this@ViewRecordAccessActivity,
+            this@ViewRecordRequestActivity,
             R.layout.transaction_list_item,
-            recordRepo.getAllRecordAccesses())
+            recordRepo.getAllRecordRequests())
 
         recordListView.adapter = adapter
     }

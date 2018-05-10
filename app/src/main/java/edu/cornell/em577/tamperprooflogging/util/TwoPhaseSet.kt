@@ -31,6 +31,11 @@ class TwoPhaseSet<E> {
         removeSet.add(elementToRemove)
     }
 
+    /** Returns whether the provided element is in the tombstone set. */
+    fun hasRemoved(element: E): Boolean {
+        return removeSet.contains(element)
+    }
+
     /** Return the elements currently in the set and the removed set of elements. */
     fun toList(): Pair<List<E>, List<E>> {
         return Pair(addSet.minus(removeSet).toList(), removeSet.toList())

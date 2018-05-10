@@ -84,6 +84,7 @@ class BlockRepository private constructor(private val env: Pair<Context, Resourc
                 stack.push(parentBlock)
             }
         }
+        updateRequestedRecords()
     }
 
     /**
@@ -103,8 +104,8 @@ class BlockRepository private constructor(private val env: Pair<Context, Resourc
                     val userId = transaction.content
                     userRepo.removeUserCertificate(userId)
                 }
-                Transaction.TransactionType.RECORD_ACCESS -> {
-                    recordRepo.addRecordAccess(transaction)
+                Transaction.TransactionType.RECORD_REQUEST -> {
+                    recordRepo.addRecordRequest(transaction)
                 }
                 Transaction.TransactionType.PROOF_OF_WITNESS -> {}
             }
@@ -121,6 +122,10 @@ class BlockRepository private constructor(private val env: Pair<Context, Resourc
             if (!userRepo.isActiveUser(userId)) {
                 throw PermissionNotFoundException("User certificate has been revoked")
             }
+            recordRepo.addUserRecordRequests(transactions.filter {
+                it.type == Transaction.TransactionType.RECORD_REQUEST &&
+                        it.comment.contains("Requesting record") }
+                .map { it.content.toInt() })
             val unsignedBlockToAdd = UnsignedBlock(
                 userId,
                 Calendar.getInstance().timeInMillis,
@@ -329,7 +334,95 @@ class BlockRepository private constructor(private val env: Pair<Context, Resourc
                 populateReposWithTransactions(it.unsignedBlock.transactions)
             })
             updateRootBlock(rootSignedBlock)
+            updateRequestedRecords()
         }
+    }
+
+    private fun updateRequestedRecords() {
+        val (userId, _) = userRepo.loadUserMetaData()
+        val pendingRequests = getPendingRequests(userId)
+        val proofOfWitnesses = getProofOfWitnesses()
+        val witnessesByPendingRequest = HashMap<Int, HashSet<String>>()
+        for (witness in proofOfWitnesses) {
+            val rootBlock = signedBlockByCryptoHash[witness]!!
+            val stack = ArrayDeque<SignedBlock>(listOf(rootBlock))
+            while (stack.isNotEmpty()) {
+                val currentBlock = stack.pop()
+                if (currentBlock.cryptoHash in pendingRequests) {
+                    val requestBlock = signedBlockByCryptoHash[currentBlock.cryptoHash]!!
+                    val recordIds = requestBlock.unsignedBlock.transactions.filter {
+                        it.type == Transaction.TransactionType.RECORD_REQUEST &&
+                            it.comment.contains("Requesting record")
+                    }.map { it.content.toInt() }
+                    for (recordId in recordIds) {
+                        val witnessSet = witnessesByPendingRequest.getOrDefault(recordId, HashSet())
+
+                        witnessSet.addAll(rootBlock.unsignedBlock.transactions.filter {
+                            it.type == Transaction.TransactionType.PROOF_OF_WITNESS
+                        }.map { it.content })
+                        witnessesByPendingRequest[recordId] = witnessSet
+                    }
+                }
+
+                for (parentHash in currentBlock.unsignedBlock.parentHashes) {
+                    val parentBlock = signedBlockByCryptoHash[parentHash]!!
+                    stack.push(parentBlock)
+                }
+            }
+
+        }
+        val result = HashSet<Int>()
+        for ((recordId, witnesses) in witnessesByPendingRequest) {
+            witnesses.add(userId)
+            if (witnesses.size >= recordRepo.getNumWitnessesNeeded()) {
+                result.add(recordId)
+            }
+        }
+        if (result.size > 0) {
+            notifyUser("Record Request Status","Requests for records ${result.joinToString()} have been fulfilled.", 2)
+        }
+        recordRepo.completedRequests(result)
+    }
+
+    private fun getProofOfWitnesses(): HashSet<String> {
+        val result = HashSet<String>()
+        val rootBlock = signedBlockByCryptoHash[ROOT]!!
+        val stack = ArrayDeque<SignedBlock>(listOf(rootBlock))
+        while (stack.isNotEmpty()) {
+            val currentBlock = stack.pop()
+            result.addAll(currentBlock.unsignedBlock.transactions.filter {
+                it.type == Transaction.TransactionType.PROOF_OF_WITNESS }
+                .map { currentBlock.cryptoHash })
+            for (parentHash in currentBlock.unsignedBlock.parentHashes) {
+                val parentBlock = signedBlockByCryptoHash[parentHash]!!
+                stack.push(parentBlock)
+            }
+        }
+        return result
+    }
+
+    private fun getPendingRequests(userId: String): HashSet<String> {
+        val result = HashSet<String>()
+        val rootBlock = signedBlockByCryptoHash[ROOT]!!
+        val stack = ArrayDeque<SignedBlock>(listOf(rootBlock))
+        while (stack.isNotEmpty()) {
+            val currentBlock = stack.pop()
+            if (currentBlock.unsignedBlock.userId == userId) {
+                recordRepo.addUserRecordRequests(currentBlock.unsignedBlock.transactions.filter {
+                    it.type == Transaction.TransactionType.RECORD_REQUEST &&
+                            it.comment.contains("Requesting record") }
+                    .map { it.content.toInt() })
+                result.addAll(currentBlock.unsignedBlock.transactions.filter {
+                    it.type == Transaction.TransactionType.RECORD_REQUEST &&
+                            it.comment.contains("Requesting record") }
+                    .map { currentBlock.cryptoHash})
+            }
+            for (parentHash in currentBlock.unsignedBlock.parentHashes) {
+                val parentBlock = signedBlockByCryptoHash[parentHash]!!
+                stack.push(parentBlock)
+            }
+        }
+        return result
     }
 
     /** Indicate to the repository that a remote data exchange has completed */
@@ -377,4 +470,6 @@ class BlockRepository private constructor(private val env: Pair<Context, Resourc
 
         }
     }
+
+
 }

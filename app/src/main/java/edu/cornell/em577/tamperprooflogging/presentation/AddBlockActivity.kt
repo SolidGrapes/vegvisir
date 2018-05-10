@@ -42,7 +42,7 @@ class AddBlockActivity : AppCompatActivity() {
         val blockRepo = BlockRepository.getInstance(Pair(applicationContext, resources))
         val transactionsToAdd = transactionList.map {
             Transaction(
-                Transaction.TransactionType.RECORD_ACCESS,
+                Transaction.TransactionType.RECORD_REQUEST,
                 it.first,
                 it.second
             )
