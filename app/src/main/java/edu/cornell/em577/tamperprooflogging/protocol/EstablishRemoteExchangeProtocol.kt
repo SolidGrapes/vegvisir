@@ -21,7 +21,7 @@ class EstablishRemoteExchangeProtocol private constructor(env: Triple<Context, R
 
     companion object :
         SingletonHolder<EstablishRemoteExchangeProtocol, Triple<Context, Resources, String>>(::EstablishRemoteExchangeProtocol) {
-        private const val WAIT_TIME_IN_SECONDS = 120L
+        private const val WAIT_TIME_IN_SECONDS = 60L
         private const val SECOND_IN_MILLI = 1000L
     }
 

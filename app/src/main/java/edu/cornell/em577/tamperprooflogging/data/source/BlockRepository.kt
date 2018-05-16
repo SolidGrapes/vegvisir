@@ -233,6 +233,7 @@ class BlockRepository private constructor(private val env: Pair<Context, Resourc
         if (!verifySignaturesOfBlocks(blocksToVerify, userCerts)) {
             return false
         }
+        Log.d("Checking", "Verifying Ancestry of Blocks")
         return verifyAncestryOfBlocks(blocksToVerifyByCryptoHash)
     }
 
